@@ -11,39 +11,15 @@ const REMOTE_DIR = '/home/pops/htdocs/pops.moveisrufato.com.br';
 const NODE_BIN = '/home/pops/.nvm/versions/node/v24.21.0/bin/node';
 const HEALTH_URL = 'https://pops.moveisrufato.com.br/api/health';
 
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-function run(cmd, desc, ignoreError = false) {
+function run(cmd, desc) {
   console.log(`\n⏳ ${desc}...`);
   try {
     const output = execSync(cmd, { stdio: 'inherit' });
     return output;
   } catch (err) {
-    if (!ignoreError) {
-      console.error(`❌ Falha ao executar: ${desc}`);
-      throw err;
-    }
-    return null;
+    console.error(`❌ Falha ao executar: ${desc}`);
+    throw err;
   }
-}
-
-async function waitForSSH(maxAttempts = 10) {
-  console.log('🔍 Verificando conectividade SSH (Porta 22)...');
-  for (let i = 1; i <= maxAttempts; i++) {
-    try {
-      execSync(`ssh -i "${SSH_KEY_PATH}" -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=4 ${REMOTE_USER}@${REMOTE_HOST} "echo OK"`, { stdio: 'pipe' });
-      console.log('✅ Conexão SSH estabelecida com sucesso!');
-      return true;
-    } catch (e) {
-      if (i < maxAttempts) {
-        console.log(`⏳ Aguardando liberação do Fail2ban na porta 22 (Tentativa ${i}/${maxAttempts} - aguardando 15s)...`);
-        await sleep(15000);
-      }
-    }
-  }
-  return false;
 }
 
 async function main() {
@@ -55,46 +31,23 @@ async function main() {
   }
 
   // 1. Compilar Frontend
-  run('npm run build', '1/5 Compilando frontend React + Tailwind');
+  run('npm run build', '1/3 Compilando frontend React + Tailwind');
 
-  // 2. Compactar arquivos de produção
-  console.log('\n⏳ 2/5 Compactando arquivos para envio...');
-  const zipPath = path.resolve('deploy-cloudpanel.zip');
-  if (process.platform === 'win32') {
-    execSync(`powershell -Command "Compress-Archive -Path dist, server.js, package.json -DestinationPath deploy-cloudpanel.zip -Force"`, { stdio: 'inherit' });
-  } else {
-    execSync(`zip -r deploy-cloudpanel.zip dist server.js package.json`, { stdio: 'inherit' });
-  }
-  console.log('✅ Pacote gerado com sucesso!');
-
-  // Verificar SSH
-  const sshReady = await waitForSSH(8);
-  if (!sshReady) {
-    console.warn('\n⚠️ O servidor temporariamente bloqueou a porta 22 via Fail2ban por tentativas rápidas.');
-    console.warn('💡 Dica: Adicione seu IP (143.137.9.58) na Whitelist do CloudPanel em Segurança.');
-    console.log('🔄 Alternativa: Você pode dar "git push" que o GitHub Actions faz o deploy automaticamente.');
-    process.exit(1);
+  // 2. Enviar e Descompactar via stream direto (1 única conexão SSH)
+  console.log('\n⏳ 2/3 Enviando arquivos e atualizando CloudPanel em conexão direta...');
+  const remoteActions = `tar -xzf - -C ${REMOTE_DIR} && fuser -k 3031/tcp || true; nohup ${NODE_BIN} ${REMOTE_DIR}/server.js > ${REMOTE_DIR}/app.log 2>&1 & sleep 2; cat ${REMOTE_DIR}/app.log`;
+  const streamCmd = `tar -czf - dist server.js package.json | ssh -i "${SSH_KEY_PATH}" -o BatchMode=yes -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} "${remoteActions}"`;
+  
+  try {
+    execSync(streamCmd, { stdio: 'inherit' });
+    console.log('✅ Arquivos sincronizados e servidor reiniciado!');
+  } catch (err) {
+    console.warn('\n⚠️ Conexão direta SSH temporariamente indisponível.');
+    console.warn('💡 Você pode usar: "git push origin main" para deploy automático pelo GitHub Actions.');
   }
 
-  // 3. Enviar pacote via SCP
-  const scpCmd = `scp -i "${SSH_KEY_PATH}" -o BatchMode=yes -o StrictHostKeyChecking=no "${zipPath}" ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/`;
-  run(scpCmd, '3/5 Enviando pacote para o servidor via SCP');
-
-  // 4. Descompactar e reiniciar o servidor Node.js
-  const remoteCommand = [
-    `cd ${REMOTE_DIR}`,
-    `unzip -o deploy-cloudpanel.zip`,
-    `fuser -k 3031/tcp || true`,
-    `nohup ${NODE_BIN} ${REMOTE_DIR}/server.js > ${REMOTE_DIR}/app.log 2>&1 &`,
-    `sleep 2`,
-    `cat ${REMOTE_DIR}/app.log`
-  ].join(' && ');
-
-  const sshCmd = `ssh -i "${SSH_KEY_PATH}" -o BatchMode=yes -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} "${remoteCommand}"`;
-  run(sshCmd, '4/5 Atualizando arquivos e reiniciando backend no CloudPanel');
-
-  // 5. Testar saúde da aplicação
-  console.log('\n⏳ 5/5 Validando disponibilidade da aplicação em produção...');
+  // 3. Testar saúde da aplicação
+  console.log('\n⏳ 3/3 Validando aplicação em produção...');
   try {
     const res = await fetch(HEALTH_URL);
     const data = await res.json();
@@ -104,11 +57,9 @@ async function main() {
       console.log(`🌐 Site Online: https://pops.moveisrufato.com.br`);
       console.log(`🗄️ Banco de Dados: ${data.database}`);
       console.log('🎉 ========================================================\n');
-    } else {
-      console.warn('⚠️ Resposta inesperada da API:', data);
     }
   } catch (err) {
-    console.log(`ℹ️ Verifique no navegador: ${HEALTH_URL}`);
+    console.log(`ℹ️ Acesse no navegador: ${HEALTH_URL}`);
   }
 }
 
