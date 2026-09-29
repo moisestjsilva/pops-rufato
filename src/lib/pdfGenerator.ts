@@ -24,12 +24,17 @@ export async function generateElementPDF(elementId: string, filename: string): P
 
   try {
     const canvas = await html2canvas(element, {
-      scale: 1.5,
+      scale: 2,
       useCORS: true,
       allowTaint: false,
       logging: false,
       backgroundColor: '#ffffff',
-      windowWidth: element.scrollWidth || 1200
+      scrollX: 0,
+      scrollY: -window.scrollY,
+      windowWidth: document.documentElement.offsetWidth || 1280,
+      ignoreElements: (el) => {
+        return el.classList && el.classList.contains('no-print');
+      }
     });
 
     const imgData = canvas.toDataURL('image/jpeg', 0.95);

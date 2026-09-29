@@ -102,7 +102,7 @@ export const POPViewer: React.FC<POPViewerProps> = ({
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12">
       {/* Top Action Header Bar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+      <div className="no-print flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
         <div>
           <button
             onClick={onBack}
@@ -456,7 +456,7 @@ export const POPViewer: React.FC<POPViewerProps> = ({
             </p>
           </div>
         ) : (
-          <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="no-print bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="text-xs text-slate-300 max-w-2xl leading-relaxed">
               Ao clicar no botão ao lado, você declara que realizou a leitura integral deste procedimento, compreendeu todas as etapas de operação e segurança, e assume o compromisso de executá-las em sua rotina de trabalho.
             </div>

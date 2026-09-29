@@ -7,7 +7,7 @@ export const LegalDisclaimerBanner: React.FC = () => {
   if (dismissed) return null;
 
   return (
-    <div className="bg-amber-50 border-l-4 border-amber-500 p-3.5 mb-5 rounded-r-lg shadow-xs flex items-start justify-between gap-3 text-amber-900 text-xs sm:text-sm">
+    <div className="no-print bg-amber-50 border-l-4 border-amber-500 p-3.5 mb-5 rounded-r-lg shadow-xs flex items-start justify-between gap-3 text-amber-900 text-xs sm:text-sm">
       <div className="flex items-start gap-2.5">
         <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
         <div>
