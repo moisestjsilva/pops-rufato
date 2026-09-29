@@ -12,7 +12,10 @@ import {
   QrCode, 
   PenTool, 
   Award,
-  AlertTriangle
+  AlertTriangle,
+  Image as ImageIcon,
+  Maximize2,
+  X
 } from 'lucide-react';
 import { POP, POPVersion, Acknowledgement } from '../../types';
 import { formatDate, formatDateTime, getPOPStatusBadge, getRevisionStatus } from '../../utils/helpers';
@@ -41,6 +44,7 @@ export const POPViewer: React.FC<POPViewerProps> = ({
 
   const [showHistory, setShowHistory] = useState(false);
   const [showSignModal, setShowSignModal] = useState(false);
+  const [selectedImageModal, setSelectedImageModal] = useState<{ url: string; title: string; caption?: string } | null>(null);
 
   // Active version to render (defaults to current active version or explicit selected version)
   const activeVersion = selectedVersion || pop.versions?.find(v => v.version_number === pop.current_version) || pop.versions?.[0];
@@ -269,9 +273,43 @@ export const POPViewer: React.FC<POPViewerProps> = ({
                     </p>
 
                     {step.warning && (
-                      <div className="ml-9 p-2.5 bg-rose-50 border-l-4 border-rose-500 rounded-r-lg text-rose-900 text-xs flex items-start gap-2">
+                      <div className="ml-0 sm:ml-9 p-2.5 bg-rose-50 border-l-4 border-rose-500 rounded-r-lg text-rose-900 text-xs flex items-start gap-2">
                         <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
                         <div><strong>Atenção / Segurança:</strong> {step.warning}</div>
+                      </div>
+                    )}
+
+                    {/* Step Attached Image */}
+                    {step.image_url && (
+                      <div className="ml-0 sm:ml-9 mt-3">
+                        <div className="rounded-xl overflow-hidden border border-slate-300 bg-white max-w-lg shadow-xs">
+                          <div 
+                            className="relative group bg-slate-950/5 flex items-center justify-center p-2 cursor-pointer"
+                            onClick={() => setSelectedImageModal({
+                              url: step.image_url!,
+                              title: `${step.step_number} - ${step.title}`,
+                              caption: step.image_caption
+                            })}
+                          >
+                            <img
+                              src={step.image_url}
+                              alt={step.image_caption || `Ilustração do passo ${step.step_number}`}
+                              className="max-h-72 w-full object-contain rounded-lg transition-transform hover:scale-[1.01]"
+                              loading="eager"
+                              crossOrigin="anonymous"
+                            />
+                            <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/80 text-white text-[10px] px-2 py-1 rounded-md flex items-center gap-1 shadow-xs pointer-events-none">
+                              <Maximize2 className="w-3 h-3" /> Ampliar
+                            </div>
+                          </div>
+                          <div className="p-2.5 bg-slate-50 border-t border-slate-200 text-xs text-slate-700 flex items-start gap-2">
+                            <ImageIcon className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                            <div className="text-[11px] leading-relaxed">
+                              <span className="font-bold text-slate-900">Figura {step.step_number}: </span>
+                              <span>{step.image_caption || 'Evidência fotográfica / instrução visual do procedimento.'}</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -403,6 +441,49 @@ export const POPViewer: React.FC<POPViewerProps> = ({
         documentCode={pop.code}
         versionNumber={activeVersion?.version_number || '01'}
       />
+
+      {/* Step Image Lightbox / Zoom Modal */}
+      {selectedImageModal && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4"
+          onClick={() => setSelectedImageModal(null)}
+        >
+          <div 
+            className="bg-white rounded-2xl max-w-3xl w-full overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <ImageIcon className="w-5 h-5 text-blue-600" />
+                <h3 className="font-bold text-slate-900 text-sm">
+                  {selectedImageModal.title}
+                </h3>
+              </div>
+              <button
+                onClick={() => setSelectedImageModal(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 bg-slate-950 flex items-center justify-center overflow-auto flex-1">
+              <img
+                src={selectedImageModal.url}
+                alt={selectedImageModal.title}
+                className="max-h-[65vh] w-auto max-w-full object-contain rounded-lg shadow-md"
+              />
+            </div>
+
+            {selectedImageModal.caption && (
+              <div className="p-3.5 bg-slate-50 border-t border-slate-200 text-xs text-slate-700">
+                <span className="font-semibold text-slate-900">Legenda: </span>
+                <span>{selectedImageModal.caption}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

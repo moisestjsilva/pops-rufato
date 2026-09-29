@@ -14,6 +14,7 @@ import {
   POPChangeLog,
   EmailNotificationLog
 } from '../types';
+import { PRESET_STEP_IMAGES } from '../utils/imageHelper';
 
 export const initialCompanies: Company[] = [
   {
@@ -382,10 +383,37 @@ export const initialPOPs: POP[] = [
           responsibilities: 'Operador de Máquina: Executar o checklist diário, alimentar o plano de corte e operar o equipamento conforme NR-12. Líder de Produção: Fiscalizar o uso de EPIs e autorizar o início do lote.',
           materials: 'EPIs Obrigatórios (Protetor aurícula tipo concha, Óculos de segurança ampla visão, Calçado de segurança com biqueira de aço, Luva anticorte Nível 5 para manuseio de MDF). Equipamentos de medição: Paquímetro digital calibrado.',
           steps: [
-            { id: 's1', step_number: '5.1', title: 'Inspeção Inicial e Ativação de Segurança', description: 'Realizar varredura visual no percurso do carro da serra. Testar o acionamento do cabo de parada de emergência e barreira fotoelétrica frontais.', warning: 'Nunca opere a máquina com intertravamento solto ou desativado.' },
-            { id: 's2', step_number: '5.2', title: 'Carregamento do Programa de Corte', description: 'Importar o arquivo de ordenamento (.PCP) gerado pelo sistema de otimização de plano de corte. Conferir espessura e código da chapa.' },
-            { id: 's3', step_number: '5.3', title: 'Corte da Primeira Peça Piloto', description: 'Efetuar o primeiro corte em velocidade reduzida (50%). Medir as dimensões e o esquadro com paquímetro digital antes da produção seriada.' },
-            { id: 's4', step_number: '5.4', title: 'Etiquetagem e Paletização', description: 'Fixar a etiqueta de código de barras em cada peça cortada e dispor sobre palete padronizado respeitando a pilha máxima de 1,20m.' }
+            { 
+              id: 's1', 
+              step_number: '5.1', 
+              title: 'Inspeção Inicial e Ativação de Segurança', 
+              description: 'Realizar varredura visual no percurso do carro da serra. Testar o acionamento do cabo de parada de emergência e barreira fotoelétrica frontais.', 
+              warning: 'Nunca opere a máquina com intertravamento solto ou desativado.',
+              image_url: PRESET_STEP_IMAGES[0].dataUrl,
+              image_caption: PRESET_STEP_IMAGES[0].caption
+            },
+            { 
+              id: 's2', 
+              step_number: '5.2', 
+              title: 'Carregamento do Programa de Corte', 
+              description: 'Importar o arquivo de ordenamento (.PCP) gerado pelo sistema de otimização de plano de corte. Conferir espessura e código da chapa.' 
+            },
+            { 
+              id: 's3', 
+              step_number: '5.3', 
+              title: 'Corte da Primeira Peça Piloto', 
+              description: 'Efetuar o primeiro corte em velocidade reduzida (50%). Medir as dimensões e o esquadro com paquímetro digital antes da produção seriada.',
+              image_url: PRESET_STEP_IMAGES[1].dataUrl,
+              image_caption: PRESET_STEP_IMAGES[1].caption
+            },
+            { 
+              id: 's4', 
+              step_number: '5.4', 
+              title: 'Etiquetagem e Paletização', 
+              description: 'Fixar a etiqueta de código de barras em cada peça cortada e dispor sobre palete padronizado respeitando a pilha máxima de 1,20m.',
+              image_url: PRESET_STEP_IMAGES[2].dataUrl,
+              image_caption: PRESET_STEP_IMAGES[2].caption
+            }
           ],
           risks_and_care: 'Corte de membros superiores, ruído excessivo, projeção de estilhaços. Em caso de ruído atípico, acione o botão de emergência imediatamente.',
           related_documents: 'NR-12 (Segurança no Trabalho em Máquinas e Equipamentos), OS-PROD-012 (Ordem de Serviço de Segurança do Trabalho).',

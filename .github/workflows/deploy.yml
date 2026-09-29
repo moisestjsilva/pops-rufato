@@ -1,0 +1,36 @@
+name: Deploy para CloudPanel
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. Checkout do Repositório
+        uses: actions/checkout@v4
+
+      - name: 2. Configurar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 3. Instalar Dependências
+        run: npm ci
+
+      - name: 4. Gerar Build de Produção
+        run: npm run build
+
+      - name: 5. Sincronizar Arquivos com o CloudPanel (via SSH / Rsync)
+        uses: easingthemes/ssh-deploy@main
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.CLOUDPANEL_SSH_KEY }}
+          ARGS: "-rltgoDzvO --delete"
+          SOURCE: "dist/"
+          REMOTE_HOST: ${{ secrets.CLOUDPANEL_HOST }}
+          REMOTE_USER: ${{ secrets.CLOUDPANEL_USER }}
+          TARGET: "/home/${{ secrets.CLOUDPANEL_USER }}/htdocs/${{ secrets.CLOUDPANEL_SITE }}/"

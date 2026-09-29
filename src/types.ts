@@ -77,6 +77,7 @@ export interface POPStep {
   description: string;
   warning?: string;
   image_url?: string;
+  image_caption?: string;
 }
 
 export interface POPContent {

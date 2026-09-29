@@ -9,9 +9,22 @@ export async function generateElementPDF(elementId: string, filename: string): P
     throw new Error(`Element #${elementId} not found for PDF generation.`);
   }
 
+  // Pre-load and wait for all images to render before capturing
+  const images = Array.from(element.querySelectorAll('img'));
+  await Promise.all(
+    images.map(img => {
+      if (img.complete && img.naturalHeight !== 0) return Promise.resolve();
+      return new Promise<void>((resolve) => {
+        img.onload = () => resolve();
+        img.onerror = () => resolve(); // continue even if an image fails to load
+      });
+    })
+  );
+
   const canvas = await html2canvas(element, {
     scale: 2,
     useCORS: true,
+    allowTaint: true,
     logging: false,
     backgroundColor: '#ffffff'
   });
@@ -27,7 +40,7 @@ export async function generateElementPDF(elementId: string, filename: string): P
   pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
   heightLeft -= pageHeight;
 
-  while (heightLeft >= 0) {
+  while (heightLeft > 1) {
     position = heightLeft - imgHeight;
     pdf.addPage();
     pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
