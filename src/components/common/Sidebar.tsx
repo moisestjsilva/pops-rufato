@@ -18,6 +18,7 @@ import {
   Bell, 
   History, 
   Settings, 
+  ShieldCheck,
   ChevronDown, 
   ChevronRight,
   Menu,
@@ -31,7 +32,7 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentPath, onNavigate }) => {
-  const { userRole } = useAuth();
+  const { userRole, canCreatePOP, isSuperAdmin, allUsersList } = useAuth();
 
   const [openPOPs, setOpenPOPs] = useState(true);
   const [openPessoas, setOpenPessoas] = useState(false);
@@ -95,6 +96,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPath, onNavigate }) => 
           <span>Dashboard</span>
         </button>
 
+        {/* Controle de Acesso (RBAC) */}
+        <button
+          onClick={() => handleNav('/controle-acesso')}
+          className={`w-full ${navItemClass(isLinkActive('/controle-acesso'))} text-slate-300 hover:text-white hover:bg-slate-800 ${isLinkActive('/controle-acesso') ? '!bg-purple-700 !text-white' : ''}`}
+        >
+          <ShieldCheck className="w-4 h-4 text-purple-400" />
+          <span className="flex-1 text-left">Controle de Acesso (RBAC)</span>
+          {isSuperAdmin() && allUsersList.filter(u => u.account_status === 'PENDENTE').length > 0 && (
+            <span className="px-1.5 py-0.2 bg-amber-500 text-slate-950 font-black rounded-full text-[10px]">
+              {allUsersList.filter(u => u.account_status === 'PENDENTE').length}
+            </span>
+          )}
+        </button>
+
         {/* POPs Group */}
         <div>
           <button
@@ -121,13 +136,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPath, onNavigate }) => 
                 <span>Todos os POPs</span>
               </button>
 
-              {(userRole === 'ADMINISTRADOR' || userRole === 'GESTOR') && (
+              {canCreatePOP() && (
                 <button
                   onClick={() => handleNav('/pops/criar')}
                   className={`w-full ${subNavItemClass(isLinkActive('/pops/criar'))} text-slate-300 hover:text-white hover:bg-slate-800/60 ${isLinkActive('/pops/criar') ? '!bg-blue-900/50 !text-blue-300' : ''}`}
                 >
-                  <PlusCircle className="w-3.5 h-3.5" />
-                  <span>Criar POP</span>
+                  <PlusCircle className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Criar Novo POP</span>
                 </button>
               )}
 

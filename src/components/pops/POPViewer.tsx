@@ -40,7 +40,7 @@ export const POPViewer: React.FC<POPViewerProps> = ({
   onEdit,
   onBack
 }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, canEditPOP } = useAuth();
   const { acknowledgements, confirmScience, employees } = useData();
 
   const [showHistory, setShowHistory] = useState(false);
@@ -161,7 +161,7 @@ export const POPViewer: React.FC<POPViewerProps> = ({
             </button>
           )}
 
-          {onEdit && (
+          {onEdit && canEditPOP(pop) && (
             <button
               onClick={onEdit}
               className="px-3 py-1.5 text-xs font-bold text-white bg-slate-800 hover:bg-slate-900 rounded-lg shadow-xs flex items-center gap-1.5"

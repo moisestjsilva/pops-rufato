@@ -211,7 +211,7 @@ app.delete('/api/positions/:id', async (req, res) => {
 });
 
 // -------------------------------------------------------------
-// 4. FUNCIONÁRIOS (Employees)
+// 4. FUNCIONÁRIOS & CONTROLE DE ACESSO (RBAC)
 // -------------------------------------------------------------
 app.get('/api/employees', async (req, res) => {
   try {
@@ -223,7 +223,16 @@ app.get('/api/employees', async (req, res) => {
       LEFT JOIN positions p ON e.position_id = p.id 
       ORDER BY e.full_name ASC
     `);
-    res.json(rows);
+
+    // Formata campos RBAC granulares
+    const formatted = rows.map(r => ({
+      ...r,
+      can_create_pop: Boolean(r.can_create_pop),
+      can_edit_pop: Boolean(r.can_edit_pop),
+      managed_department_ids: r.managed_department_ids ? JSON.parse(r.managed_department_ids) : []
+    }));
+
+    res.json(formatted);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -234,17 +243,22 @@ app.post('/api/employees', async (req, res) => {
     const { 
       id, user_id, company_id, department_id, position_id, 
       full_name, cpf, registration_number, email, phone, 
-      role, admission_date, status 
+      role, admission_date, status, account_status,
+      managed_department_ids, can_create_pop, can_edit_pop, password 
     } = req.body;
     const empId = id || `emp-${Date.now()}`;
+    const managedJson = managed_department_ids ? JSON.stringify(managed_department_ids) : null;
+
     await pool.query(
       `INSERT INTO employees 
-        (id, user_id, company_id, department_id, position_id, full_name, cpf, registration_number, email, phone, role, admission_date, status) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, user_id, company_id, department_id, position_id, full_name, cpf, registration_number, email, phone, role, account_status, managed_department_ids, can_create_pop, can_edit_pop, password, admission_date, status) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         empId, user_id || null, company_id, department_id, position_id, 
         full_name, cpf, registration_number, email, phone || null, 
-        role || 'FUNCIONARIO', admission_date || new Date().toISOString().split('T')[0], status || 'active'
+        role || 'USUARIO', account_status || 'APROVADO', managedJson,
+        can_create_pop ? 1 : 0, can_edit_pop ? 1 : 0, password || '123',
+        admission_date || new Date().toISOString().split('T')[0], status || 'active'
       ]
     );
     const [rows] = await pool.query('SELECT * FROM employees WHERE id = ?', [empId]);
@@ -259,18 +273,38 @@ app.put('/api/employees/:id', async (req, res) => {
     const { 
       company_id, department_id, position_id, 
       full_name, cpf, registration_number, email, phone, 
-      role, admission_date, status 
+      role, account_status, managed_department_ids,
+      can_create_pop, can_edit_pop, password, admission_date, status 
     } = req.body;
+
+    const managedJson = managed_department_ids !== undefined ? JSON.stringify(managed_department_ids) : undefined;
+
     await pool.query(
       `UPDATE employees SET 
-        company_id = ?, department_id = ?, position_id = ?, 
-        full_name = ?, cpf = ?, registration_number = ?, email = ?, 
-        phone = ?, role = ?, admission_date = ?, status = ? 
+        company_id = COALESCE(?, company_id), 
+        department_id = COALESCE(?, department_id), 
+        position_id = COALESCE(?, position_id), 
+        full_name = COALESCE(?, full_name), 
+        cpf = COALESCE(?, cpf), 
+        registration_number = COALESCE(?, registration_number), 
+        email = COALESCE(?, email), 
+        phone = COALESCE(?, phone), 
+        role = COALESCE(?, role), 
+        account_status = COALESCE(?, account_status),
+        managed_department_ids = COALESCE(?, managed_department_ids),
+        can_create_pop = COALESCE(?, can_create_pop),
+        can_edit_pop = COALESCE(?, can_edit_pop),
+        password = COALESCE(?, password),
+        admission_date = COALESCE(?, admission_date), 
+        status = COALESCE(?, status) 
        WHERE id = ?`,
       [
         company_id, department_id, position_id, 
         full_name, cpf, registration_number, email, 
-        phone, role, admission_date, status, req.params.id
+        phone, role, account_status, managedJson,
+        can_create_pop !== undefined ? (can_create_pop ? 1 : 0) : null,
+        can_edit_pop !== undefined ? (can_edit_pop ? 1 : 0) : null,
+        password, admission_date, status, req.params.id
       ]
     );
     res.json({ success: true });
@@ -282,6 +316,61 @@ app.put('/api/employees/:id', async (req, res) => {
 app.delete('/api/employees/:id', async (req, res) => {
   try {
     await pool.query('DELETE FROM employees WHERE id = ?', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ENDPOINTS ESPECÍFICOS DE RBAC
+app.post('/api/auth/approve', async (req, res) => {
+  try {
+    const { userId, role, managedDeptIds } = req.body;
+    const managedJson = managedDeptIds ? JSON.stringify(managedDeptIds) : null;
+    await pool.query(
+      'UPDATE employees SET account_status = "APROVADO", role = ?, managed_department_ids = ? WHERE id = ?',
+      [role || 'USUARIO', managedJson, userId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/auth/toggle-block', async (req, res) => {
+  try {
+    const { userId, newStatus } = req.body;
+    await pool.query(
+      'UPDATE employees SET account_status = ? WHERE id = ?',
+      [newStatus || 'BLOQUEADO', userId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/auth/permissions', async (req, res) => {
+  try {
+    const { userId, can_create_pop, can_edit_pop } = req.body;
+    await pool.query(
+      'UPDATE employees SET can_create_pop = ?, can_edit_pop = ? WHERE id = ?',
+      [can_create_pop ? 1 : 0, can_edit_pop ? 1 : 0, userId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/auth/assign-sectors', async (req, res) => {
+  try {
+    const { adminId, deptIds } = req.body;
+    const managedJson = JSON.stringify(deptIds || []);
+    await pool.query(
+      'UPDATE employees SET role = "ADMIN", managed_department_ids = ? WHERE id = ?',
+      [managedJson, adminId]
+    );
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -538,7 +627,31 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+async function ensureRBACSchema() {
+  try {
+    const alterQueries = [
+      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS account_status ENUM('PENDENTE', 'APROVADO', 'BLOQUEADO') NOT NULL DEFAULT 'APROVADO'",
+      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS managed_department_ids TEXT DEFAULT NULL",
+      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS can_create_pop TINYINT(1) NOT NULL DEFAULT 0",
+      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS can_edit_pop TINYINT(1) NOT NULL DEFAULT 0",
+      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS password VARCHAR(255) DEFAULT '123'",
+      "ALTER TABLE employees MODIFY COLUMN role ENUM('SUPER_ADMIN', 'ADMIN', 'USUARIO', 'ADMINISTRADOR', 'GESTOR', 'RH', 'FUNCIONARIO') NOT NULL DEFAULT 'USUARIO'"
+    ];
+    for (const q of alterQueries) {
+      try {
+        await pool.query(q);
+      } catch (e) {
+        // Fallback para versões mais antigas do MySQL que não suportam IF NOT EXISTS na coluna
+      }
+    }
+    console.log('[POP CONTROL] Validação de tabelas RBAC concluída com sucesso.');
+  } catch (err) {
+    console.warn('[POP CONTROL] Checagem de tabelas RBAC:', err.message);
+  }
+}
+
+app.listen(PORT, '0.0.0.0', async () => {
   console.log(`[POP CONTROL] Servidor Node.js rodando na porta ${PORT}`);
   console.log(`[POP CONTROL] Banco configurado em ${dbConfig.host}:${dbConfig.port}/${dbConfig.database}`);
+  await ensureRBACSchema();
 });

@@ -32,15 +32,26 @@ export const POPsListPage: React.FC<POPsListPageProps> = ({
   onCreatePOP
 }) => {
   const { pops, departments, companies } = useData();
-  const { userRole } = useAuth();
+  const { currentUser, userRole, canCreatePOP, canEditPOP, isStandardUser, isSectorAdmin, isSuperAdmin } = useAuth();
 
   const [search, setSearch] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('TODOS');
-  const [selectedDept, setSelectedDept] = useState<string>('TODOS');
+  // Se for USUÁRIO padrão, restringe por padrão ao seu próprio setor
+  const [selectedDept, setSelectedDept] = useState<string>(() => {
+    if (isStandardUser() && currentUser?.department_id) {
+      return currentUser.department_id;
+    }
+    return 'TODOS';
+  });
   const [selectedRevision, setSelectedRevision] = useState<string>('TODOS');
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
 
   const filteredPOPs = pops.filter(pop => {
+    // Regra 3 (RBAC): USUÁRIO possui acesso restrito ao seu próprio setor
+    if (isStandardUser() && currentUser?.department_id && pop.department_id !== currentUser.department_id) {
+      return false;
+    }
+
     // Search match
     const matchQuery = 
       pop.code.toLowerCase().includes(search.toLowerCase()) ||
@@ -76,11 +87,16 @@ export const POPsListPage: React.FC<POPsListPageProps> = ({
             Procedimentos Operacionais Padrão (POPs)
           </h2>
           <p className="text-xs text-slate-500">
-            Controle de versão, vigência e conformidade técnica dos POPs cadastrados
+            {isStandardUser()
+              ? `Visualização restrita ao seu setor (${currentUser?.department_name || 'Produção'})`
+              : isSectorAdmin()
+              ? 'Gestão de POPs dos setores delegados sob sua responsabilidade'
+              : 'Controle Global de versão, vigência e conformidade de todos os setores'}
           </p>
         </div>
 
-        {(userRole === 'ADMINISTRADOR' || userRole === 'GESTOR') && (
+        {/* Botão Criar Novo POP: Apenas se tiver permissão (Super Admin, Admin do setor ou Usuário com permissão explícita) */}
+        {canCreatePOP(selectedDept !== 'TODOS' ? selectedDept : undefined) && (
           <button
             onClick={onCreatePOP}
             className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center gap-2 transition-transform active:scale-95 shrink-0"

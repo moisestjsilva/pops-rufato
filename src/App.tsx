@@ -16,12 +16,16 @@ import { SignaturesPage } from './pages/SignaturesPage';
 import { ComplianceHubPage } from './pages/ComplianceHubPage';
 import { NotificationsPage } from './pages/NotificationsPage';
 import { AuditLogPage } from './pages/AuditLogPage';
+import { ShieldAlert } from 'lucide-react';
 import { SettingsGovBRPage } from './pages/SettingsGovBRPage';
 import { PublicValidationPage } from './pages/PublicValidationPage';
+import { AccessControlPage } from './pages/AccessControlPage';
+import { LoginPage } from './components/auth/LoginPage';
 import { POP, POPVersion } from './types';
 
 function MainApp() {
   const { pops } = useData();
+  const { currentUser, isAuthenticated, canCreatePOP, canEditPOP } = useAuth();
   const [currentPath, setCurrentPath] = useState<string>('/');
 
   // Selected state for details & edits
@@ -67,6 +71,11 @@ function MainApp() {
     if (parts[3]) validationVer = parts[3];
   }
 
+  // Se não for tela de validação pública e não houver usuário autenticado/aprovado:
+  if (!isValidationPage && (!currentUser || currentUser.account_status !== 'APROVADO')) {
+    return <LoginPage onSuccess={() => navigateTo('/')} />;
+  }
+
   // Render main screen according to currentPath
   const renderScreen = () => {
     if (isValidationPage) {
@@ -79,7 +88,38 @@ function MainApp() {
       );
     }
 
-    if (isCreatingPOP || currentPath === '/pops/criar' || editingPOP || currentPath === '/pops/editar') {
+    if (isCreatingPOP || currentPath === '/pops/criar') {
+      if (!canCreatePOP()) {
+        return (
+          <div className="bg-white p-8 rounded-3xl border border-rose-200 text-center space-y-4 max-w-lg mx-auto mt-12 shadow-sm">
+            <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto">
+              <ShieldAlert className="w-6 h-6" />
+            </div>
+            <h3 className="font-extrabold text-slate-900 text-base">Permissão de Criação Restrita</h3>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              De acordo com o Controle de Acesso (RBAC), colaboradores padrão têm permissão apenas de leitura.
+              Solicite ao Administrador/Gestor do seu setor a liberação de permissão para criar procedimentos.
+            </p>
+            <button
+              onClick={() => navigateTo('/pops')}
+              className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs"
+            >
+              Voltar aos POPs
+            </button>
+          </div>
+        );
+      }
+
+      return (
+        <POPEditCreateForm
+          initialPOP={undefined}
+          onSave={() => navigateTo('/pops')}
+          onCancel={() => navigateTo('/pops')}
+        />
+      );
+    }
+
+    if (editingPOP || currentPath === '/pops/editar') {
       return (
         <POPEditCreateForm
           initialPOP={editingPOP || undefined}
@@ -115,6 +155,9 @@ function MainApp() {
             onCreatePOP={() => navigateTo('/pops/criar')}
           />
         );
+
+      case '/controle-acesso':
+        return <AccessControlPage />;
 
       case '/aprovacoes':
         return (

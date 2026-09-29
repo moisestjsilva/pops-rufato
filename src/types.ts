@@ -1,4 +1,19 @@
-export type UserRole = 'ADMINISTRADOR' | 'GESTOR' | 'RH' | 'FUNCIONARIO';
+export type UserRole = 
+  | 'SUPER_ADMIN' 
+  | 'ADMIN' 
+  | 'USUARIO'
+  // Compatibilidade com valores legados
+  | 'ADMINISTRADOR' 
+  | 'GESTOR' 
+  | 'RH' 
+  | 'FUNCIONARIO';
+
+export type AccountStatus = 'PENDENTE' | 'APROVADO' | 'BLOQUEADO';
+
+export interface UserGranularPermissions {
+  can_create_pop: boolean;
+  can_edit_pop: boolean;
+}
 
 export type POPStatus = 
   | 'rascunho'
@@ -63,7 +78,14 @@ export interface Employee {
   registration_number: string; // Matrícula
   email: string;
   phone?: string;
+  password?: string;
   role: UserRole;
+  account_status?: AccountStatus;
+  // Setores sob a responsabilidade do ADMIN (Gestor de Setor)
+  managed_department_ids?: string[];
+  // Permissões granulares concedidas pelo ADMIN ao USUÁRIO
+  can_create_pop?: boolean;
+  can_edit_pop?: boolean;
   admission_date: string;
   status: 'active' | 'inactive';
   created_at: string;
