@@ -8,6 +8,10 @@ SET FOREIGN_KEY_CHECKS = 0;
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 SET time_zone = "+00:00";
 
+-- Selecionar o banco de dados pops
+CREATE DATABASE IF NOT EXISTS `pops` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE `pops`;
+
 -- --------------------------------------------------------
 -- 1. Tabela: companies (Empresas do Grupo Rufato)
 -- --------------------------------------------------------

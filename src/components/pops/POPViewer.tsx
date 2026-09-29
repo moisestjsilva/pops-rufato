@@ -15,7 +15,8 @@ import {
   AlertTriangle,
   Image as ImageIcon,
   Maximize2,
-  X
+  X,
+  Paperclip
 } from 'lucide-react';
 import { POP, POPVersion, Acknowledgement } from '../../types';
 import { formatDate, formatDateTime, getPOPStatusBadge, getRevisionStatus } from '../../utils/helpers';
@@ -71,12 +72,17 @@ export const POPViewer: React.FC<POPViewerProps> = ({
 
   const validationUrl = `${window.location.origin}/validar/${pop.code}/${activeVersion?.version_number || pop.current_version}`;
 
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+
   const handleDownloadPDF = async () => {
     try {
+      setIsGeneratingPDF(true);
       await generateElementPDF(`pop-doc-print-${pop.id}`, `${pop.code}_V${activeVersion?.version_number || '01'}.pdf`);
     } catch (e) {
-      console.error(e);
-      alert('Erro ao gerar PDF do procedimento. Tente novamente.');
+      console.warn('Fallback acionado: abrindo diálogo de impressão/PDF do navegador...', e);
+      window.print();
+    } finally {
+      setIsGeneratingPDF(false);
     }
   };
 
@@ -125,11 +131,21 @@ export const POPViewer: React.FC<POPViewerProps> = ({
           </button>
 
           <button
+            onClick={() => window.print()}
+            className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-300 flex items-center gap-1.5"
+            title="Imprimir ou Salvar em PDF via Navegador"
+          >
+            <Printer className="w-3.5 h-3.5 text-slate-600" />
+            <span>Imprimir / Salvar PDF</span>
+          </button>
+
+          <button
             onClick={handleDownloadPDF}
-            className="px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 flex items-center gap-1.5"
+            disabled={isGeneratingPDF}
+            className="px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 rounded-lg border border-blue-200 flex items-center gap-1.5"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>Baixar PDF</span>
+            <span>{isGeneratingPDF ? 'Gerando...' : 'Baixar PDF'}</span>
           </button>
 
           {existingAck && (
@@ -145,12 +161,13 @@ export const POPViewer: React.FC<POPViewerProps> = ({
             </button>
           )}
 
-          {onEdit && (pop.status === 'rascunho' || pop.status === 'reprovado') && (
+          {onEdit && (
             <button
               onClick={onEdit}
-              className="px-3 py-1.5 text-xs font-bold text-white bg-slate-800 hover:bg-slate-900 rounded-lg shadow-xs"
+              className="px-3 py-1.5 text-xs font-bold text-white bg-slate-800 hover:bg-slate-900 rounded-lg shadow-xs flex items-center gap-1.5"
             >
-              Editar Documento
+              <PenTool className="w-3.5 h-3.5" />
+              <span>{pop.status === 'publicado' ? 'Revisar / Nova Versão' : 'Editar Documento'}</span>
             </button>
           )}
         </div>
@@ -337,6 +354,36 @@ export const POPViewer: React.FC<POPViewerProps> = ({
             </h3>
             <p className="whitespace-pre-line text-slate-700">{content.related_documents}</p>
           </div>
+
+          {/* Section 8 - Anexos e Documentos de Apoio */}
+          {((content.attachments && content.attachments.length > 0) || (activeVersion?.attachments && activeVersion.attachments.length > 0)) && (
+            <div>
+              <h3 className="font-extrabold text-blue-900 text-sm sm:text-base border-b-2 border-blue-900 pb-1 mb-3 flex items-center gap-2">
+                <Paperclip className="w-4 h-4 text-purple-600" />
+                8. ANEXOS E DOCUMENTOS DE APOIO
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {(content.attachments || activeVersion?.attachments || []).map(att => (
+                  <div key={att.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <FileText className="w-5 h-5 text-purple-700 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-800 truncate">{att.file_name}</p>
+                        <p className="text-[10px] text-slate-500">{(att.file_size / 1024).toFixed(1)} KB • {att.file_type || 'Arquivo'}</p>
+                      </div>
+                    </div>
+                    <a
+                      href={att.file_path}
+                      download={att.file_name}
+                      className="px-2.5 py-1 text-xs font-semibold text-purple-700 bg-white border border-purple-200 rounded-lg hover:bg-purple-50 flex items-center gap-1 shrink-0"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Baixar
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Section 8 - Verification QR Code & Footer Hash */}
           <div className="pt-6 border-t-2 border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">

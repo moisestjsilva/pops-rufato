@@ -89,6 +89,7 @@ export interface POPContent {
   risks_and_care: string;     // 6. CUIDADOS / RISCOS
   related_documents: string;  // 7. DOCUMENTOS RELACIONADOS
   history_notes?: string;     // 8. OBSERVAÇÕES DE ALTERAÇÃO
+  attachments?: POPAttachment[];
 }
 
 export interface POPAttachment {

@@ -1,1 +1,35 @@
 @import "tailwindcss";
+
+@media print {
+  /* Ocultar elementos de navegação e botões durante a impressão */
+  header,
+  aside,
+  nav,
+  button,
+  .no-print {
+    display: none !important;
+  }
+
+  body, html, main {
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Ajustar o container formal do POP para impressão */
+  [id^="pop-doc-print-"] {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  /* Evitar quebra no meio de etapas, tabelas ou blocos de aviso */
+  .break-inside-avoid,
+  [id^="pop-doc-print-"] > div {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

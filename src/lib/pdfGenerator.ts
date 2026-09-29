@@ -1,53 +1,61 @@
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { POP, POPVersion, Acknowledgement, Employee } from '../types';
-import { formatDate, formatDateTime, formatCPF, maskCPF } from '../utils/helpers';
+import { formatDate, formatDateTime, formatCPF } from '../utils/helpers';
 
 export async function generateElementPDF(elementId: string, filename: string): Promise<void> {
   const element = document.getElementById(elementId);
   if (!element) {
-    throw new Error(`Element #${elementId} not found for PDF generation.`);
+    throw new Error(`Elemento #${elementId} não encontrado para geração de PDF.`);
   }
 
-  // Pre-load and wait for all images to render before capturing
+  // Pre-load and wait for images to load with a max timeout
   const images = Array.from(element.querySelectorAll('img'));
   await Promise.all(
     images.map(img => {
       if (img.complete && img.naturalHeight !== 0) return Promise.resolve();
       return new Promise<void>((resolve) => {
         img.onload = () => resolve();
-        img.onerror = () => resolve(); // continue even if an image fails to load
+        img.onerror = () => resolve();
+        setTimeout(resolve, 1200); // 1.2s timeout fallback
       });
     })
   );
 
-  const canvas = await html2canvas(element, {
-    scale: 2,
-    useCORS: true,
-    allowTaint: true,
-    logging: false,
-    backgroundColor: '#ffffff'
-  });
+  try {
+    const canvas = await html2canvas(element, {
+      scale: 1.5,
+      useCORS: true,
+      allowTaint: false,
+      logging: false,
+      backgroundColor: '#ffffff',
+      windowWidth: element.scrollWidth || 1200
+    });
 
-  const imgData = canvas.toDataURL('image/png');
-  const pdf = new jsPDF('p', 'mm', 'a4');
-  const imgWidth = 210;
-  const pageHeight = 297;
-  const imgHeight = (canvas.height * imgWidth) / canvas.width;
-  let heightLeft = imgHeight;
-  let position = 0;
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const imgWidth = 210;
+    const pageHeight = 297;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    let heightLeft = imgHeight;
+    let position = 0;
 
-  pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-  heightLeft -= pageHeight;
-
-  while (heightLeft > 1) {
-    position = heightLeft - imgHeight;
-    pdf.addPage();
-    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
     heightLeft -= pageHeight;
-  }
 
-  pdf.save(filename);
+    while (heightLeft > 2) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+
+    pdf.save(filename);
+  } catch (canvasErr) {
+    console.warn('html2canvas encontrou restrição de renderização. Acionando diálogo nativo de impressão/PDF do navegador...', canvasErr);
+    // Fallback garantido: Aciona a janela de impressão nativa do navegador
+    window.print();
+  }
 }
 
 export function generateEvidenceReportPDF(
