@@ -1,62 +1,115 @@
-# Guia Rápido de Deploy no CloudPanel
+# Guia de Deploy & Conexão: pops.moveisrufato.com.br
 
-Este repositório já está configurado com o GitHub Actions em `.github/workflows/deploy.yml` para realizar o deploy automaticamente a cada `git push` na branch `main`.
+Este guia foi personalizado com as suas configurações exatas já cadastradas no CloudPanel:
+
+| Parâmetro | Valor Configurado |
+| :--- | :--- |
+| **Domínio do Site** | `pops.moveisrufato.com.br` |
+| **Usuário do Site** | `pops` |
+| **Porta da Aplicação Node.js** | `3031` |
+| **Usuário do Banco MySQL** | `pops` |
+| **Porta do Banco** | `3306` (Host: `127.0.0.1`) |
+| **Usuário SSH** | `popsssh` |
 
 ---
 
-## 1. Configurar Secrets no Repositório do GitHub
+## 🗄️ Passo 1: Importar as Tabelas no phpMyAdmin
+
+O script SQL otimizado para o seu banco já está pronto em `database/schema_mysql.sql`.
+
+1. No CloudPanel, acesse **Databases**.
+2. Clique no link **phpMyAdmin** ao lado do seu banco de dados.
+3. Faça login com o usuário **`pops`** e a senha que você definiu ao criar o banco.
+4. No menu lateral esquerdo do phpMyAdmin, clique no nome do seu banco de dados.
+5. No topo da tela, clique na aba **Importar** (ou **SQL**):
+   - **Pela aba Importar**: Escolha o arquivo `database/schema_mysql.sql` do projeto e clique em **Executar** no rodapé.
+   - **Pela aba SQL**: Abra o arquivo `database/schema_mysql.sql` no seu computador, copie todo o texto, cole na caixa do phpMyAdmin e clique em **Executar**.
+6. Pronto! As 14 tabelas (empresas, setores, cargos, colaboradores, POPs, versões e assinaturas) serão criadas e populadas com os dados da Rufato Móveis.
+
+---
+
+## ⚙️ Passo 2: Criar o arquivo `.env` no CloudPanel
+
+No servidor CloudPanel, acesse a pasta da aplicação (`/home/pops/htdocs/pops.moveisrufato.com.br/`) via **File Manager** do CloudPanel ou SSH e crie o arquivo `.env` com o seguinte conteúdo:
+
+```env
+PORT=3031
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_NAME=pops
+DB_USER=pops
+DB_PASSWORD=coloque_aqui_a_senha_do_banco_pops
+APP_URL=https://pops.moveisrufato.com.br
+```
+
+*(Substitua `DB_NAME` caso o nome do banco seja diferente de `pops`, ex: `pops_db`).*
+
+---
+
+## 🌐 Passo 3: Configurações do Site Node.js no CloudPanel
+
+No CloudPanel, em **Sites** > clique em **`pops.moveisrufato.com.br`**:
+
+1. Na aba **Node.js Settings**:
+   - **App Port**: `3031`
+   - **Entry Point**: `server.js`
+   - **Run Script**: `start`
+2. Na aba **Vhost (Nginx)**:
+   Certifique-se de que o Nginx encaminhe as requisições para a porta `3031` do Node.js:
+   ```nginx
+   location / {
+       proxy_pass http://127.0.0.1:3031;
+       proxy_http_version 1.1;
+       proxy_set_header Upgrade $http_upgrade;
+       proxy_set_header Connection 'upgrade';
+       proxy_set_header Host $host;
+       proxy_set_header X-Real-IP $remote_addr;
+       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+       proxy_set_header X-Forwarded-Proto $scheme;
+       proxy_cache_bypass $http_upgrade;
+       client_max_body_size 50M;
+   }
+   ```
+3. Na aba **SSL/TLS**: Ative o certificado SSL gratuito (Let's Encrypt).
+
+---
+
+## 🚀 Passo 4: Configurar o Deploy Automático no GitHub Actions
 
 No seu repositório no GitHub:
 1. Acesse **Settings** > **Secrets and variables** > **Actions**.
-2. Clique no botão verde **New repository secret** e adicione:
+2. Clique em **New repository secret** e adicione:
 
-| Secret Name | O que colocar | Exemplo |
-| :--- | :--- | :--- |
-| `CLOUDPANEL_HOST` | IP público ou domínio do seu servidor | `198.51.100.25` |
-| `CLOUDPANEL_USER` | Nome do usuário do site criado no CloudPanel | `pop-user` |
-| `CLOUDPANEL_SITE` | Domínio cadastrado no CloudPanel | `pop.suaempresa.com.br` |
-| `CLOUDPANEL_SSH_KEY` | Chave privada SSH autorizada no servidor | Conteúdo do arquivo `~/.ssh/id_ed25519` |
+| Secret Name | Valor a Inserir |
+| :--- | :--- |
+| `CLOUDPANEL_HOST` | IP público do seu servidor CloudPanel (ex: `198.51.100.25`) |
+| `CLOUDPANEL_SSH_USER` | `popsssh` |
+| `CLOUDPANEL_SITE_USER` | `pops` |
+| `CLOUDPANEL_SITE` | `pops.moveisrufato.com.br` |
+| `CLOUDPANEL_SSH_KEY` | Conteúdo da chave privada SSH autorizada para o usuário `popsssh` |
+
+3. Para autorizar a chave SSH no CloudPanel:
+   - Em **Sites** > `pops.moveisrufato.com.br` > **SSH Users** > edite o usuário `popsssh` e adicione a chave pública SSH.
 
 ---
 
-## 2. Gerar ou Cadastrar a Chave SSH no CloudPanel
+## 🔍 Passo 5: Testar e Validar
 
-Se você ainda não tem uma chave SSH para o usuário do site no CloudPanel:
+Após o deploy ou após iniciar o servidor, teste os seguintes acessos no navegador:
 
-1. No terminal do seu computador (ou no CloudPanel em **SSH Users**):
-   ```bash
-   ssh-keygen -t ed25519 -C "github-actions-cloudpanel" -f ~/.ssh/cloudpanel_deploy
+1. **Teste de Saúde do Backend e Banco de Dados**:
+   `https://pops.moveisrufato.com.br/api/health`
+
+   Retorno esperado:
+   ```json
+   {
+     "status": "ok",
+     "database": "connected",
+     "timestamp": "2026-09-29T11:40:00.000Z"
+   }
    ```
-2. Adicione a **chave pública** (`cloudpanel_deploy.pub`) no CloudPanel em:
-   - **Sites** > Selecione seu site > **SSH Users** > **Add SSH Key**.
-3. Adicione a **chave privada** (`cloudpanel_deploy`) no secret `CLOUDPANEL_SSH_KEY` do GitHub.
 
----
+2. **Acesso ao Sistema POP Control**:
+   `https://pops.moveisrufato.com.br`
 
-## 3. Configuração do Vhost (Nginx) no CloudPanel
-
-Como a aplicação é uma Single Page Application (React Router SPA), é necessário que o Nginx redirecione todas as rotas para o `index.html`.
-
-1. No CloudPanel, vá em **Sites** > Selecione seu site > aba **Vhost**.
-2. No bloco `server`, adicione ou certifique-se de ter a diretiva:
-
-```nginx
-location / {
-    try_files $uri $uri/ /index.html;
-}
-```
-
-3. Clique em **Save**.
-
----
-
-## 4. Testar o Deploy
-
-Basta enviar um commit para a branch `main`:
-```bash
-git add .
-git commit -m "feat: configurando deploy automatico cloudpanel"
-git push origin main
-```
-
-Acompanhe a execução em tempo real na aba **Actions** do seu repositório no GitHub.
+Os dados que você cadastrar, aprovar ou assinar no sistema serão lidos e salvos diretamente no seu MySQL, e você poderá consultar todas as linhas a qualquer momento pelo **phpMyAdmin**!

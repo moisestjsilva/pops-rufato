@@ -30,6 +30,7 @@ import {
   initialEmailLogs
 } from '../data/mockSeed';
 import { generateSimpleHash } from '../utils/helpers';
+import { apiClient } from '../lib/api';
 
 interface DataContextType {
   companies: Company[];
@@ -161,6 +162,38 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => saveStorage('notifications', notifications), [notifications]);
   useEffect(() => saveStorage('changeLogs', changeLogs), [changeLogs]);
   useEffect(() => saveStorage('emailLogs', emailLogs), [emailLogs]);
+
+  // Sincronização inicial com o MySQL no CloudPanel
+  useEffect(() => {
+    async function syncFromMySQL() {
+      try {
+        const health = await apiClient.checkHealth();
+        if (health.status === 'ok' && health.database === 'connected') {
+          console.log('[POP CONTROL] Conectado ao MySQL via CloudPanel. Sincronizando dados...');
+          const [dbCompanies, dbDepts, dbPositions, dbEmployees, dbPOPs, dbAcks, dbAudit] = await Promise.all([
+            apiClient.getCompanies().catch(() => null),
+            apiClient.getDepartments().catch(() => null),
+            apiClient.getPositions().catch(() => null),
+            apiClient.getEmployees().catch(() => null),
+            apiClient.getPOPs().catch(() => null),
+            apiClient.getAcknowledgements().catch(() => null),
+            apiClient.getAuditLogs().catch(() => null)
+          ]);
+
+          if (dbCompanies && Array.isArray(dbCompanies) && dbCompanies.length > 0) setCompanies(dbCompanies);
+          if (dbDepts && Array.isArray(dbDepts) && dbDepts.length > 0) setDepartments(dbDepts);
+          if (dbPositions && Array.isArray(dbPositions) && dbPositions.length > 0) setPositions(dbPositions);
+          if (dbEmployees && Array.isArray(dbEmployees) && dbEmployees.length > 0) setEmployees(dbEmployees);
+          if (dbPOPs && Array.isArray(dbPOPs) && dbPOPs.length > 0) setPops(dbPOPs);
+          if (dbAcks && Array.isArray(dbAcks) && dbAcks.length > 0) setAcknowledgements(dbAcks);
+          if (dbAudit && Array.isArray(dbAudit) && dbAudit.length > 0) setAuditLogs(dbAudit);
+        }
+      } catch (err) {
+        console.info('[POP CONTROL] API offline, operando com dados locais/cache.');
+      }
+    }
+    syncFromMySQL();
+  }, []);
 
   // POP Detailed Change History Helper
   const addPOPChangeLog = (
@@ -334,17 +367,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updated_at: new Date().toISOString()
     };
     setCompanies(prev => [...prev, newComp]);
+    apiClient.saveCompany(newComp).catch(err => console.warn('[MySQL] Erro ao salvar empresa:', err));
     return newComp;
   };
 
   const updateCompany = (id: string, comp: Partial<Company>) => {
     setCompanies(prev => prev.map(c => c.id === id ? { ...c, ...comp, updated_at: new Date().toISOString() } : c));
+    apiClient.updateCompany(id, comp).catch(err => console.warn('[MySQL] Erro ao atualizar empresa:', err));
   };
 
   const deleteCompany = (id: string): boolean => {
     const hasDepts = departments.some(d => d.company_id === id);
     if (hasDepts) return false;
     setCompanies(prev => prev.filter(c => c.id !== id));
+    apiClient.deleteCompany(id).catch(err => console.warn('[MySQL] Erro ao excluir empresa:', err));
     return true;
   };
 
@@ -359,11 +395,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updated_at: new Date().toISOString()
     };
     setDepartments(prev => [...prev, newDept]);
+    apiClient.saveDepartment(newDept).catch(err => console.warn('[MySQL] Erro ao salvar setor:', err));
     return newDept;
   };
 
   const updateDepartment = (id: string, dept: Partial<Department>) => {
     setDepartments(prev => prev.map(d => d.id === id ? { ...d, ...dept, updated_at: new Date().toISOString() } : d));
+    apiClient.updateDepartment(id, dept).catch(err => console.warn('[MySQL] Erro ao atualizar setor:', err));
   };
 
   const deleteDepartment = (id: string): boolean => {
@@ -371,6 +409,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const hasEmployees = employees.some(e => e.department_id === id);
     if (hasPositions || hasEmployees) return false;
     setDepartments(prev => prev.filter(d => d.id !== id));
+    apiClient.deleteDepartment(id).catch(err => console.warn('[MySQL] Erro ao excluir setor:', err));
     return true;
   };
 
@@ -387,17 +426,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       updated_at: new Date().toISOString()
     };
     setPositions(prev => [...prev, newPos]);
+    apiClient.savePosition(newPos).catch(err => console.warn('[MySQL] Erro ao salvar cargo:', err));
     return newPos;
   };
 
   const updatePosition = (id: string, pos: Partial<Position>) => {
     setPositions(prev => prev.map(p => p.id === id ? { ...p, ...pos, updated_at: new Date().toISOString() } : p));
+    apiClient.updatePosition(id, pos).catch(err => console.warn('[MySQL] Erro ao atualizar cargo:', err));
   };
 
   const deletePosition = (id: string): boolean => {
     const hasEmployees = employees.some(e => e.position_id === id);
     if (hasEmployees) return false;
     setPositions(prev => prev.filter(p => p.id !== id));
+    apiClient.deletePosition(id).catch(err => console.warn('[MySQL] Erro ao excluir cargo:', err));
     return true;
   };
 
@@ -442,15 +484,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setNotifications(prev => [notif, ...prev]);
     });
 
+    apiClient.saveEmployee(newEmp).catch(err => console.warn('[MySQL] Erro ao salvar colaborador:', err));
     return newEmp;
   };
 
   const updateEmployee = (id: string, emp: Partial<Employee>) => {
     setEmployees(prev => prev.map(e => e.id === id ? { ...e, ...emp, updated_at: new Date().toISOString() } : e));
+    apiClient.updateEmployee(id, emp).catch(err => console.warn('[MySQL] Erro ao atualizar colaborador:', err));
   };
 
   const deleteEmployee = (id: string): boolean => {
     setEmployees(prev => prev.filter(e => e.id !== id));
+    apiClient.deleteEmployee(id).catch(err => console.warn('[MySQL] Erro ao excluir colaborador:', err));
     return true;
   };
 
@@ -529,11 +574,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       versionId
     );
 
+    apiClient.createPOP({
+      ...newPOP,
+      content: initialVersionContent,
+      assigned_department_ids: assignedDepts,
+      assigned_position_ids: assignedPos
+    }).catch(err => console.warn('[MySQL] Erro ao persistir criação do POP:', err));
+
     return newPOP;
   };
 
   const updatePOP = (popId: string, updatedFields: Partial<POP>, updatedVersionContent?: any, currentUser?: Employee) => {
     const targetPOP = pops.find(p => p.id === popId);
+
+    apiClient.updatePOP(popId, updatedFields).catch(err => console.warn('[MySQL] Erro ao atualizar POP:', err));
 
     setPops(prev => prev.map(p => {
       if (p.id !== popId) return p;
@@ -914,6 +968,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     setAcknowledgements(prev => [newAck, ...prev]);
+
+    apiClient.saveAcknowledgement({
+      ...newAck,
+      signature_data_url: signatureDataUrl
+    }).catch(err => console.warn('[MySQL] Erro ao persistir ciência no MySQL:', err));
 
     if (signatureDataUrl) {
       const newSig: SignatureRecord = {

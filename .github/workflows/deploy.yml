@@ -1,4 +1,4 @@
-name: Deploy para CloudPanel
+name: Deploy para CloudPanel (Node.js + MySQL)
 
 on:
   push:
@@ -20,17 +20,28 @@ jobs:
           cache: 'npm'
 
       - name: 3. Instalar Dependências
-        run: npm ci
+        run: npm install
 
       - name: 4. Gerar Build de Produção
         run: npm run build
 
-      - name: 5. Sincronizar Arquivos com o CloudPanel (via SSH / Rsync)
+      - name: 5. Preparar Pacote de Deploy
+        run: |
+          mkdir -p deploy_pkg
+          cp -r dist deploy_pkg/dist
+          cp server.js deploy_pkg/server.js
+          cp package.json deploy_pkg/package.json
+          cp package-lock.json deploy_pkg/package-lock.json 2>/dev/null || :
+
+      - name: 6. Sincronizar Arquivos com o CloudPanel (via SSH / Rsync)
         uses: easingthemes/ssh-deploy@main
         env:
           SSH_PRIVATE_KEY: ${{ secrets.CLOUDPANEL_SSH_KEY }}
-          ARGS: "-rltgoDzvO --delete"
-          SOURCE: "dist/"
+          ARGS: "-rltgoDzvO"
+          SOURCE: "deploy_pkg/"
           REMOTE_HOST: ${{ secrets.CLOUDPANEL_HOST }}
-          REMOTE_USER: ${{ secrets.CLOUDPANEL_USER }}
-          TARGET: "/home/${{ secrets.CLOUDPANEL_USER }}/htdocs/${{ secrets.CLOUDPANEL_SITE }}/"
+          REMOTE_USER: ${{ secrets.CLOUDPANEL_SSH_USER || 'popsssh' }}
+          TARGET: "/home/${{ secrets.CLOUDPANEL_SITE_USER || 'pops' }}/htdocs/${{ secrets.CLOUDPANEL_SITE || 'pops.moveisrufato.com.br' }}/"
+          SCRIPT_AFTER: |
+            cd /home/${{ secrets.CLOUDPANEL_SITE_USER || 'pops' }}/htdocs/${{ secrets.CLOUDPANEL_SITE || 'pops.moveisrufato.com.br' }}/
+            npm install --production
