@@ -1,0 +1,6 @@
+{
+  "name": "POP CONTROL - Gestão de POPs e Compliance Operacional",
+  "description": "Sistema completo de Gestão de Procedimentos Operacionais Padrão (POPs) e Compliance Operacional com versionamento, trilha de evidências, ciências e assinaturas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
