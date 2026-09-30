@@ -135,8 +135,8 @@ export const SignatureCanvasModal: React.FC<SignatureCanvasModalProps> = ({
               <span className="font-bold text-slate-800">{currentUser.full_name}</span>
             </div>
             <div>
-              <span className="text-slate-500 block">Matrícula / CPF:</span>
-              <span className="font-medium text-slate-800">{currentUser.registration_number} | {currentUser.cpf}</span>
+              <span className="text-slate-500 block">CPF:</span>
+              <span className="font-medium text-slate-800">{currentUser.cpf}</span>
             </div>
           </div>
 

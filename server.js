@@ -314,11 +314,29 @@ app.put('/api/employees/:id', async (req, res) => {
 });
 
 app.delete('/api/employees/:id', async (req, res) => {
+  const connection = await pool.getConnection();
   try {
-    await pool.query('DELETE FROM employees WHERE id = ?', [req.params.id]);
+    const { id } = req.params;
+    await connection.beginTransaction();
+
+    // 1. Limpa registros vinculados antes de deletar o funcionário
+    await connection.query('DELETE FROM signatures WHERE employee_id = ?', [id]);
+    await connection.query('DELETE FROM acknowledgements WHERE employee_id = ?', [id]);
+    await connection.query('DELETE FROM pop_assignments WHERE employee_id = ?', [id]);
+    await connection.query('DELETE FROM app_notifications WHERE user_id = ?', [id]);
+    await connection.query('UPDATE audit_logs SET user_id = NULL WHERE user_id = ?', [id]);
+
+    // 2. Deleta o colaborador
+    await connection.query('DELETE FROM employees WHERE id = ?', [id]);
+
+    await connection.commit();
     res.json({ success: true });
   } catch (err) {
+    await connection.rollback();
+    console.error('Erro ao excluir funcionário:', err);
     res.status(500).json({ error: err.message });
+  } finally {
+    connection.release();
   }
 });
 
@@ -432,27 +450,28 @@ app.post('/api/auth/register', async (req, res) => {
   try {
     const { full_name, cpf, registration_number, email, phone, password, department_id, company_id, position_id } = req.body;
 
-    if (!full_name || !cpf || !email || !registration_number) {
-      return res.status(400).json({ success: false, message: 'Preencha todos os campos obrigatórios (Nome, CPF, Matrícula, E-mail).' });
+    if (!full_name || !cpf || !email) {
+      return res.status(400).json({ success: false, message: 'Preencha todos os campos obrigatórios (Nome, CPF e E-mail).' });
     }
 
     const cleanCpfDigits = String(cpf).replace(/\D/g, '');
     const cleanEmail = String(email).trim().toLowerCase();
-    const cleanReg = String(registration_number).trim();
+    const finalReg = registration_number && String(registration_number).trim().length > 0
+      ? String(registration_number).trim()
+      : 'M-' + (cleanCpfDigits.slice(-6) || Date.now().toString().slice(-6));
 
     const [existing] = await pool.query(
       `SELECT id FROM employees 
        WHERE LOWER(TRIM(email)) = ? 
           OR REPLACE(REPLACE(REPLACE(cpf, '.', ''), '-', ''), ' ', '') = ?
-          OR LOWER(TRIM(registration_number)) = ?
        LIMIT 1`,
-      [cleanEmail, cleanCpfDigits, cleanReg.toLowerCase()]
+      [cleanEmail, cleanCpfDigits]
     );
 
     if (existing.length > 0) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Já existe um colaborador cadastrado com este e-mail, CPF ou matrícula.' 
+        message: 'Já existe um colaborador cadastrado com este e-mail ou CPF.' 
       });
     }
 
@@ -488,7 +507,7 @@ app.post('/api/auth/register', async (req, res) => {
         posId,
         full_name.trim(),
         cpf.trim(),
-        cleanReg,
+        finalReg,
         cleanEmail,
         phone || null,
         userPass

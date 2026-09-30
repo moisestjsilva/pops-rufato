@@ -12,6 +12,10 @@ import {
   Unlock, 
   Plus, 
   Edit3, 
+  Trash2,
+  Loader2,
+  AlertTriangle,
+  Key,
   Settings2, 
   Building2, 
   FileText, 
@@ -36,7 +40,10 @@ export const AccessControlPage: React.FC = () => {
     approveUser,
     toggleUserBlock,
     updateGranularPermissions,
-    assignAdminSectors
+    assignAdminSectors,
+    updateUser,
+    deleteUser,
+    canManageUser
   } = useAuth();
 
   const { departments } = useData();
@@ -56,6 +63,23 @@ export const AccessControlPage: React.FC = () => {
   // Modal for Assigning Sectors to an Admin
   const [selectedAdminForSectors, setSelectedAdminForSectors] = useState<Employee | null>(null);
   const [adminDeptIds, setAdminDeptIds] = useState<string[]>([]);
+
+  // Modal for Editing a User
+  const [userToEdit, setUserToEdit] = useState<Employee | null>(null);
+  const [editFullName, setEditFullName] = useState('');
+  const [editCpf, setEditCpf] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editDeptId, setEditDeptId] = useState('');
+  const [editRole, setEditRole] = useState<UserRole>('USUARIO');
+  const [editAccountStatus, setEditAccountStatus] = useState<AccountStatus>('APROVADO');
+  const [editPassword, setEditPassword] = useState('');
+  const [editCanCreatePOP, setEditCanCreatePOP] = useState(false);
+  const [editCanEditPOP, setEditCanEditPOP] = useState(false);
+  const [isSavingUser, setIsSavingUser] = useState(false);
+
+  // Modal for Deleting a User
+  const [userToDelete, setUserToDelete] = useState<Employee | null>(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
 
   // Filter pending users
   const pendingUsers = allUsersList.filter(u => u.account_status === 'PENDENTE');
@@ -96,6 +120,61 @@ export const AccessControlPage: React.FC = () => {
     if (!selectedAdminForSectors) return;
     assignAdminSectors(selectedAdminForSectors.id, adminDeptIds);
     setSelectedAdminForSectors(null);
+  };
+
+  const handleOpenEditUser = (user: Employee) => {
+    setUserToEdit(user);
+    setEditFullName(user.full_name);
+    setEditCpf(user.cpf);
+    setEditEmail(user.email);
+    setEditDeptId(user.department_id);
+    setEditRole(user.role);
+    setEditAccountStatus(user.account_status);
+    setEditPassword('');
+    setEditCanCreatePOP(Boolean(user.can_create_pop));
+    setEditCanEditPOP(Boolean(user.can_edit_pop));
+  };
+
+  const handleSaveEditedUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userToEdit) return;
+    setIsSavingUser(true);
+    try {
+      const targetDept = departments.find(d => d.id === editDeptId);
+      const payload: Partial<Employee> = {
+        full_name: editFullName.trim(),
+        cpf: editCpf.trim(),
+        email: editEmail.trim(),
+        department_id: editDeptId,
+        department_name: targetDept?.name || userToEdit.department_name,
+        role: editRole,
+        account_status: editAccountStatus,
+        can_create_pop: editCanCreatePOP,
+        can_edit_pop: editCanEditPOP
+      };
+      if (editPassword.trim()) {
+        payload.password = editPassword.trim();
+      }
+      await updateUser(userToEdit.id, payload);
+      setUserToEdit(null);
+    } catch (err) {
+      console.error('Erro ao salvar usuário:', err);
+    } finally {
+      setIsSavingUser(false);
+    }
+  };
+
+  const handleConfirmDeleteUser = async () => {
+    if (!userToDelete) return;
+    setIsDeletingUser(true);
+    try {
+      await deleteUser(userToDelete.id);
+      setUserToDelete(null);
+    } catch (err) {
+      console.error('Erro ao excluir usuário:', err);
+    } finally {
+      setIsDeletingUser(false);
+    }
   };
 
   const toggleDeptSelection = (deptId: string) => {
@@ -282,13 +361,30 @@ export const AccessControlPage: React.FC = () => {
                         </span>
                       </td>
                       <td className="py-3.5 px-4 text-right">
-                        <button
-                          onClick={() => handleOpenApproveModal(user)}
-                          className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-xs flex items-center gap-1.5 ml-auto transition-transform active:scale-95"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Homologar Acesso</span>
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => handleOpenApproveModal(user)}
+                            className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-xs flex items-center gap-1.5 transition-transform active:scale-95"
+                            title="Homologar e liberar acesso"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Homologar Acesso</span>
+                          </button>
+                          <button
+                            onClick={() => handleOpenEditUser(user)}
+                            className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg border border-slate-200 hover:border-amber-300 transition-colors"
+                            title="Editar dados cadastrais do solicitante"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setUserToDelete(user)}
+                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg border border-slate-200 hover:border-rose-300 transition-colors"
+                            title="Rejeitar / Excluir solicitação"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -354,10 +450,29 @@ export const AccessControlPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="pt-3 border-t border-slate-200 flex justify-end">
+                  <div className="pt-3 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleOpenEditUser(admin)}
+                        className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-lg text-xs font-bold flex items-center gap-1 border border-amber-200"
+                        title="Editar dados cadastrais do gestor"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        <span>Editar</span>
+                      </button>
+                      {admin.id !== currentUser?.id && (
+                        <button
+                          onClick={() => setUserToDelete(admin)}
+                          className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg border border-slate-200 hover:border-rose-200 transition-colors"
+                          title="Excluir gestor"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                     <button
                       onClick={() => handleOpenAdminSectorsModal(admin)}
-                      className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold flex items-center gap-1.5"
+                      className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 ml-auto"
                     >
                       <Settings2 className="w-3.5 h-3.5" />
                       <span>Configurar Setores Vinculados</span>
@@ -402,7 +517,7 @@ export const AccessControlPage: React.FC = () => {
                   <th className="py-3 px-4">Status de Acesso</th>
                   <th className="py-3 px-4 text-center">Pode Criar POPs?</th>
                   <th className="py-3 px-4 text-center">Pode Editar POPs?</th>
-                  <th className="py-3 px-4 text-right">Ação do Gestor</th>
+                  <th className="py-3 px-4 text-right">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
@@ -412,7 +527,7 @@ export const AccessControlPage: React.FC = () => {
                     <tr key={user.id} className={`hover:bg-slate-50 transition-colors ${isBlocked ? 'bg-rose-50/40' : ''}`}>
                       <td className="py-3 px-4">
                         <div className="font-bold text-slate-900">{user.full_name}</div>
-                        <div className="text-[11px] text-slate-500">Matrícula: {user.registration_number} &bull; {user.email}</div>
+                        <div className="text-[11px] text-slate-500">{user.email} &bull; CPF: {user.cpf}</div>
                       </td>
                       <td className="py-3 px-4 text-slate-700 font-semibold">
                         {user.department_name}
@@ -461,28 +576,53 @@ export const AccessControlPage: React.FC = () => {
                         </button>
                       </td>
 
-                      {/* Lock / Unlock Toggle */}
+                      {/* User Actions */}
                       <td className="py-3 px-4 text-right">
-                        <button
-                          onClick={() => toggleUserBlock(user.id)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ml-auto ${
-                            isBlocked
-                              ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
-                              : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300'
-                          }`}
-                        >
-                          {isBlocked ? (
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => toggleUserBlock(user.id)}
+                            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                              isBlocked
+                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
+                                : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300'
+                            }`}
+                            title={isBlocked ? "Desbloquear Acesso" : "Bloquear Usuário"}
+                          >
+                            {isBlocked ? (
+                              <>
+                                <Unlock className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Desbloquear</span>
+                              </>
+                            ) : (
+                              <>
+                                <Lock className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Bloquear</span>
+                              </>
+                            )}
+                          </button>
+
+                          {canManageUser(user) && (
                             <>
-                              <Unlock className="w-3.5 h-3.5" />
-                              <span>Desbloquear Acesso</span>
-                            </>
-                          ) : (
-                            <>
-                              <Lock className="w-3.5 h-3.5" />
-                              <span>Bloquear Usuário</span>
+                              <button
+                                onClick={() => handleOpenEditUser(user)}
+                                className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg border border-slate-200 hover:border-amber-300 transition-colors"
+                                title="Editar dados do colaborador"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+
+                              {user.id !== currentUser?.id && (
+                                <button
+                                  onClick={() => setUserToDelete(user)}
+                                  className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg border border-slate-200 hover:border-rose-300 transition-colors"
+                                  title="Excluir colaborador"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
                             </>
                           )}
-                        </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -504,7 +644,7 @@ export const AccessControlPage: React.FC = () => {
             </div>
             <div>
               <h2 className="text-lg font-black text-slate-900">{currentUser?.full_name}</h2>
-              <p className="text-xs text-slate-500">{currentUser?.email} &bull; Matrícula: {currentUser?.registration_number}</p>
+              <p className="text-xs text-slate-500">{currentUser?.email} &bull; CPF: {currentUser?.cpf}</p>
             </div>
           </div>
 
@@ -739,6 +879,241 @@ export const AccessControlPage: React.FC = () => {
                 className="px-5 py-2 text-xs font-extrabold text-white bg-purple-600 hover:bg-purple-700 rounded-xl shadow-xs"
               >
                 Salvar Vinculação de Setores
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* MODAL: EDITAR CADASTRO DO USUÁRIO */}
+      {/* ============================================================== */}
+      {userToEdit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 space-y-5 border border-slate-200 shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
+                  <Edit3 className="w-4 h-4" />
+                </div>
+                <span>Editar Dados do Usuário</span>
+              </h3>
+              <button 
+                onClick={() => setUserToEdit(null)} 
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditedUser} className="space-y-4 text-xs">
+              <div className="space-y-1">
+                <label className="block font-bold text-slate-700">Nome Completo *</label>
+                <input
+                  type="text"
+                  required
+                  value={editFullName}
+                  onChange={e => setEditFullName(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:ring-2 focus:ring-amber-500 focus:outline-hidden"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="block font-bold text-slate-700">CPF *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editCpf}
+                    onChange={e => setEditCpf(e.target.value)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:ring-2 focus:ring-amber-500 focus:outline-hidden"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="block font-bold text-slate-700">E-mail Corporativo *</label>
+                  <input
+                    type="email"
+                    required
+                    value={editEmail}
+                    onChange={e => setEditEmail(e.target.value)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:ring-2 focus:ring-amber-500 focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="block font-bold text-slate-700">Setor de Lotação *</label>
+                  <select
+                    value={editDeptId}
+                    onChange={e => setEditDeptId(e.target.value)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:ring-2 focus:ring-amber-500 focus:outline-hidden"
+                  >
+                    {departments.map(d => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block font-bold text-slate-700">Nível Hierárquico (RBAC) *</label>
+                  <select
+                    disabled={!isSuperAdmin()}
+                    value={editRole}
+                    onChange={e => setEditRole(e.target.value as UserRole)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:ring-2 focus:ring-amber-500 focus:outline-hidden disabled:bg-slate-200"
+                  >
+                    <option value="USUARIO">USUÁRIO (Padrão)</option>
+                    <option value="ADMIN">ADMIN (Gestor de Setor)</option>
+                    <option value="SUPER_ADMIN">SUPER ADMIN (Global)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="block font-bold text-slate-700">Status da Conta *</label>
+                  <select
+                    value={editAccountStatus}
+                    onChange={e => setEditAccountStatus(e.target.value as AccountStatus)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium focus:ring-2 focus:ring-amber-500 focus:outline-hidden"
+                  >
+                    <option value="APROVADO">APROVADO (Acesso Liberado)</option>
+                    <option value="PENDENTE">PENDENTE (Aguardando Aprovação)</option>
+                    <option value="BLOQUEADO">BLOQUEADO (Acesso Revogado)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block font-bold text-slate-700">Redefinir Senha (opcional)</label>
+                  <input
+                    type="password"
+                    value={editPassword}
+                    onChange={e => setEditPassword(e.target.value)}
+                    placeholder="Em branco para manter atual"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-medium placeholder-slate-400 focus:ring-2 focus:ring-amber-500 focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
+              {/* Permissões Granulares (para usuários padrão) */}
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                <span className="font-bold text-slate-800 block text-xs">Permissões Operacionais Granulares:</span>
+                <div className="flex flex-col sm:flex-row gap-4 pt-1">
+                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={editCanCreatePOP}
+                      onChange={e => setEditCanCreatePOP(e.target.checked)}
+                      className="w-4 h-4 rounded text-blue-600 focus:ring-0"
+                    />
+                    <span>Permitir Criar Novos POPs</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={editCanEditPOP}
+                      onChange={e => setEditCanEditPOP(e.target.checked)}
+                      className="w-4 h-4 rounded text-blue-600 focus:ring-0"
+                    />
+                    <span>Permitir Editar POPs do Setor</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t">
+                <button
+                  type="button"
+                  disabled={isSavingUser}
+                  onClick={() => setUserToEdit(null)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingUser}
+                  className="px-5 py-2.5 text-xs font-extrabold text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-xs flex items-center gap-2 disabled:opacity-50"
+                >
+                  {isSavingUser ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Salvando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Salvar Alterações</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* MODAL: CONFIRMAR EXCLUSÃO DE USUÁRIO */}
+      {/* ============================================================== */}
+      {userToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-5 border border-slate-200 shadow-2xl animate-in zoom-in-95">
+            <div className="flex items-start justify-between">
+              <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <button
+                onClick={() => setUserToDelete(null)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="font-extrabold text-slate-900 text-base">
+                Excluir Usuário Permanentemente?
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Você está prestes a excluir o acesso de{' '}
+                <strong className="text-slate-900">{userToDelete.full_name}</strong> ({userToDelete.email}){' '}
+                do setor <strong className="text-slate-900">{userToDelete.department_name}</strong>.
+              </p>
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-[11px] leading-relaxed">
+                ⚠️ <strong>Atenção:</strong> Esta ação é irreversível e removerá as credenciais e vínculos do colaborador no banco MySQL.
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2 border-t">
+              <button
+                type="button"
+                disabled={isDeletingUser}
+                onClick={() => setUserToDelete(null)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingUser}
+                onClick={handleConfirmDeleteUser}
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl shadow-xs flex items-center gap-2 transition-transform active:scale-95 disabled:opacity-50"
+              >
+                {isDeletingUser ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Excluindo...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Excluir Definitivamente</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

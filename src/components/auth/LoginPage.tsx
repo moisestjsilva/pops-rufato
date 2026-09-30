@@ -39,7 +39,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess }) => {
   // Register Form State
   const [regName, setRegName] = useState('');
   const [regCpf, setRegCpf] = useState('');
-  const [regRegistration, setRegRegistration] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regDeptId, setRegDeptId] = useState(departments[0]?.id || 'd1111111-1111-1111-1111-111111111111');
@@ -72,10 +71,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess }) => {
     try {
       const targetDept = departments.find(d => d.id === regDeptId);
       const res = await register({
-        full_name: regName,
-        cpf: regCpf,
-        registration_number: regRegistration,
-        email: regEmail,
+        full_name: regName.trim(),
+        cpf: regCpf.trim(),
+        email: regEmail.trim(),
         password: regPassword || '123',
         department_id: regDeptId,
         department_name: targetDept?.name || 'Produção'
@@ -85,7 +83,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess }) => {
         setRegSuccessMsg(res.message);
         setRegName('');
         setRegCpf('');
-        setRegRegistration('');
         setRegEmail('');
         setRegPassword('');
         setTimeout(() => {
@@ -179,7 +176,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess }) => {
             <form onSubmit={handleLoginSubmit} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-slate-300">
-                  E-mail, Matrícula ou CPF
+                  E-mail ou CPF
                 </label>
                 <div className="relative">
                   <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
@@ -188,7 +185,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess }) => {
                     required
                     value={identifier}
                     onChange={e => setIdentifier(e.target.value)}
-                    placeholder="carlos.admin@rufato.com.br ou 00101"
+                    placeholder="seu.email@rufato.com.br ou CPF"
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-950/70 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden transition-all"
                   />
                 </div>
@@ -228,7 +225,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess }) => {
               </button>
             </form>
           ) : (
-            /* TAB 2: REGISTRATION FORM */
+            /* TAB 2: REGISTRATION FORM - CLEAN & STREAMLINED */
             <form onSubmit={handleRegisterSubmit} className="space-y-3.5 text-xs">
               <div className="space-y-1">
                 <label className="block font-bold text-slate-300">Nome Completo *</label>
@@ -238,54 +235,54 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess }) => {
                   value={regName}
                   onChange={e => setRegName(e.target.value)}
                   placeholder="Ex: João da Silva"
-                  className="w-full p-2.5 bg-slate-950/70 border border-slate-700/80 rounded-xl text-white placeholder-slate-500"
+                  className="w-full p-2.5 bg-slate-950/70 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="block font-bold text-slate-300">CPF *</label>
                   <input
                     type="text"
                     required
+                    maxLength={14}
                     value={regCpf}
-                    onChange={e => setRegCpf(e.target.value)}
+                    onChange={e => {
+                      const v = e.target.value.replace(/\D/g, '').slice(0, 11);
+                      const formatted = v.length > 9 
+                        ? v.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4')
+                        : v.length > 6
+                        ? v.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3')
+                        : v.length > 3
+                        ? v.replace(/(\d{3})(\d{1,3})/, '$1.$2')
+                        : v;
+                      setRegCpf(formatted);
+                    }}
                     placeholder="000.000.000-00"
-                    className="w-full p-2.5 bg-slate-950/70 border border-slate-700/80 rounded-xl text-white placeholder-slate-500"
+                    className="w-full p-2.5 bg-slate-950/70 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
                   />
                 </div>
+
                 <div className="space-y-1">
-                  <label className="block font-bold text-slate-300">Matrícula *</label>
+                  <label className="block font-bold text-slate-300">E-mail Corporativo *</label>
                   <input
-                    type="text"
+                    type="email"
                     required
-                    value={regRegistration}
-                    onChange={e => setRegRegistration(e.target.value)}
-                    placeholder="00456"
-                    className="w-full p-2.5 bg-slate-950/70 border border-slate-700/80 rounded-xl text-white placeholder-slate-500"
+                    value={regEmail}
+                    onChange={e => setRegEmail(e.target.value)}
+                    placeholder="seu.nome@rufato.com.br"
+                    className="w-full p-2.5 bg-slate-950/70 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
                   />
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="block font-bold text-slate-300">E-mail Corporativo *</label>
-                <input
-                  type="email"
-                  required
-                  value={regEmail}
-                  onChange={e => setRegEmail(e.target.value)}
-                  placeholder="seu.nome@rufato.com.br"
-                  className="w-full p-2.5 bg-slate-950/70 border border-slate-700/80 rounded-xl text-white placeholder-slate-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="block font-bold text-slate-300">Setor de Lotação *</label>
                   <select
                     value={regDeptId}
                     onChange={e => setRegDeptId(e.target.value)}
-                    className="w-full p-2.5 bg-slate-950/70 border border-slate-700/80 rounded-xl text-white"
+                    className="w-full p-2.5 bg-slate-950/70 border border-slate-700/80 rounded-xl text-white focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
                   >
                     {departments.map(d => (
                       <option key={d.id} value={d.id} className="bg-slate-900 text-white">
@@ -302,7 +299,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess }) => {
                     value={regPassword}
                     onChange={e => setRegPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full p-2.5 bg-slate-950/70 border border-slate-700/80 rounded-xl text-white placeholder-slate-500"
+                    className="w-full p-2.5 bg-slate-950/70 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
                   />
                 </div>
               </div>

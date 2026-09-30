@@ -268,7 +268,6 @@ export const PeopleManagementPage: React.FC<PeopleManagementPageProps> = ({ init
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider">
                   <th className="py-3 px-4">Nome / Email</th>
-                  <th className="py-3 px-4">Matrícula</th>
                   <th className="py-3 px-4">CPF</th>
                   <th className="py-3 px-4">Setor</th>
                   <th className="py-3 px-4">Cargo</th>
@@ -277,14 +276,13 @@ export const PeopleManagementPage: React.FC<PeopleManagementPageProps> = ({ init
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
-                {employees.filter(e => e.full_name.toLowerCase().includes(search.toLowerCase()) || e.registration_number.toLowerCase().includes(search.toLowerCase())).map(emp => (
+                {employees.filter(e => e.full_name.toLowerCase().includes(search.toLowerCase()) || e.cpf.includes(search) || e.email.toLowerCase().includes(search.toLowerCase())).map(emp => (
                   <tr key={emp.id} className="hover:bg-slate-50">
                     <td className="py-3 px-4">
                       <div className="font-bold text-slate-900">{emp.full_name}</div>
                       <div className="text-slate-500 text-[11px]">{emp.email}</div>
                     </td>
-                    <td className="py-3 px-4 font-mono font-bold text-slate-700">{emp.registration_number}</td>
-                    <td className="py-3 px-4 text-slate-600">{formatCPF(emp.cpf)}</td>
+                    <td className="py-3 px-4 text-slate-600 font-mono font-medium">{formatCPF(emp.cpf)}</td>
                     <td className="py-3 px-4 text-slate-700">{emp.department_name}</td>
                     <td className="py-3 px-4 text-slate-700">{emp.position_title}</td>
                     <td className="py-3 px-4">
@@ -414,15 +412,9 @@ export const PeopleManagementPage: React.FC<PeopleManagementPageProps> = ({ init
                 <label className="block font-semibold mb-1">Nome Completo *</label>
                 <input type="text" value={empName} onChange={e => setEmpName(e.target.value)} required className="w-full p-2.5 rounded-lg border" />
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block font-semibold mb-1">CPF *</label>
-                  <input type="text" value={empCpf} onChange={e => setEmpCpf(e.target.value)} required className="w-full p-2.5 rounded-lg border" />
-                </div>
-                <div>
-                  <label className="block font-semibold mb-1">Matrícula *</label>
-                  <input type="text" value={empReg} onChange={e => setEmpReg(e.target.value)} required className="w-full p-2.5 rounded-lg border" />
-                </div>
+              <div>
+                <label className="block font-semibold mb-1">CPF *</label>
+                <input type="text" value={empCpf} onChange={e => setEmpCpf(e.target.value)} required className="w-full p-2.5 rounded-lg border" placeholder="000.000.000-00" />
               </div>
               <div>
                 <label className="block font-semibold mb-1">E-mail Corporativo *</label>

@@ -90,7 +90,7 @@ export const SignaturesPage: React.FC = () => {
                     <tr key={ack.id} className="hover:bg-slate-50">
                       <td className="py-3 px-4">
                         <div className="font-bold text-slate-900">{ack.employee_name}</div>
-                        <div className="text-[11px] text-slate-500">Matrícula: {ack.employee_registration} | CPF: {maskCPF(ack.employee_cpf)}</div>
+                        <div className="text-[11px] text-slate-500">CPF: {maskCPF(ack.employee_cpf)}</div>
                       </td>
                       <td className="py-3 px-4">
                         <span className="font-bold text-blue-900">{ack.pop_code}</span>

@@ -110,7 +110,7 @@ export function generateEvidenceReportPDF(
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.text(`Nome Completo: ${employee.full_name}`, 20, 97);
-  doc.text(`Matrícula: ${employee.registration_number}   |   CPF: ${formatCPF(employee.cpf)}`, 20, 105);
+  doc.text(`CPF: ${formatCPF(employee.cpf)}   |   E-mail: ${employee.email}`, 20, 105);
   doc.text(`Empresa: ${pop.company_name || 'Rufato Móveis'}   |   Setor: ${employee.department_name}   |   Cargo: ${employee.position_title}`, 20, 113);
 
   // Evidence Details Box

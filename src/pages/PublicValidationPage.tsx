@@ -87,7 +87,7 @@ export const PublicValidationPage: React.FC<PublicValidationPageProps> = ({
                 <div key={ack.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
                   <div>
                     <span className="font-bold text-slate-900">{ack.employee_name}</span>
-                    <span className="text-slate-500 block text-[11px]">Matrícula: {ack.employee_registration}</span>
+                    <span className="text-slate-500 block text-[11px]">Ciência Registrada</span>
                   </div>
                   <div className="text-right text-[11px]">
                     <span className="font-bold text-emerald-700 block">🟢 Confirmado</span>

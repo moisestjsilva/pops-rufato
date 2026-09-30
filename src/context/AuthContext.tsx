@@ -20,6 +20,8 @@ interface AuthContextType {
   toggleUserBlock: (userId: string) => Promise<void>;
   updateGranularPermissions: (userId: string, perms: { can_create_pop?: boolean; can_edit_pop?: boolean }) => Promise<void>;
   assignAdminSectors: (adminId: string, deptIds: string[]) => Promise<void>;
+  updateUser: (userId: string, data: Partial<Employee>) => Promise<boolean>;
+  deleteUser: (userId: string) => Promise<boolean>;
   
   // RBAC Permission Checkers
   isSuperAdmin: () => boolean;
@@ -284,6 +286,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateUser = async (userId: string, data: Partial<Employee>): Promise<boolean> => {
+    try {
+      setAllUsersList(prev => prev.map(u => u.id === userId ? { ...u, ...data, updated_at: new Date().toISOString() } : u));
+      if (currentUser?.id === userId) {
+        const updated = { ...currentUser, ...data };
+        setCurrentUser(updated as Employee);
+        localStorage.setItem('popcontrol_current_user', JSON.stringify(updated));
+      }
+      await apiClient.updateEmployee(userId, data);
+      await refreshUsersFromBackend();
+      return true;
+    } catch (err) {
+      console.error('Erro ao atualizar usuário:', err);
+      await refreshUsersFromBackend();
+      return false;
+    }
+  };
+
+  const deleteUser = async (userId: string): Promise<boolean> => {
+    try {
+      setAllUsersList(prev => prev.filter(u => u.id !== userId));
+      await apiClient.deleteEmployee(userId);
+      await refreshUsersFromBackend();
+      return true;
+    } catch (err) {
+      console.error('Erro ao excluir usuário:', err);
+      await refreshUsersFromBackend();
+      return false;
+    }
+  };
+
   // -------------------------------------------------------------
   // 5. CHECADORES DE PERMISSÃO HIERÁRQUICA (RBAC)
   // -------------------------------------------------------------
@@ -398,6 +431,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       toggleUserBlock,
       updateGranularPermissions,
       assignAdminSectors,
+      updateUser,
+      deleteUser,
       isSuperAdmin,
       isSectorAdmin,
       isStandardUser,

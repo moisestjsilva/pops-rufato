@@ -202,7 +202,7 @@ export const ComplianceHubPage: React.FC<ComplianceHubPageProps> = ({ initialSub
                   <div>
                     <h3 className="font-extrabold text-slate-900 text-base">{emp.full_name}</h3>
                     <p className="text-xs text-slate-500">
-                      Matrícula: {emp.registration_number} | Cargo: {emp.position_title} | Setor: {emp.department_name}
+                      CPF: {emp.cpf} | Cargo: {emp.position_title} | Setor: {emp.department_name}
                     </p>
                   </div>
                 </div>
