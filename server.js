@@ -479,7 +479,7 @@ app.post('/api/auth/register', async (req, res) => {
     await pool.query(
       `INSERT INTO employees 
         (id, user_id, company_id, department_id, position_id, full_name, cpf, registration_number, email, phone, role, account_status, managed_department_ids, can_create_pop, can_edit_pop, password, admission_date, status) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'USUARIO', 'PENDENTE', NULL, 0, 0, ?, CURDATE(), 'active')`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'USUARIO', 'PENDENTE', NULL, 0, 0, ?, CURDATE(), 'active')`,
       [
         newEmpId,
         `usr-${Date.now()}`,
