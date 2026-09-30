@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+
+    <!-- Shield Outer Gradient -->
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="50%" stop-color="#1d4ed8"/>
+      <stop offset="100%" stop-color="#1e3a8a"/>
+    </linearGradient>
+
+    <!-- Shield Inner Shadow Gradient -->
+    <linearGradient id="shieldInner" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#172554"/>
+    </linearGradient>
+
+    <!-- Checkmark Gradient -->
+    <linearGradient id="checkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+
+    <!-- Drop Shadow Filter -->
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+
+  <!-- Background Tile -->
+  <rect width="512" height="512" rx="110" fill="url(#bgGrad)"/>
+
+  <!-- Shield Group -->
+  <g filter="url(#shadow)">
+    <!-- Shield Outline / Gloss -->
+    <path d="M256 64 C340 70, 400 90, 416 128 C416 280, 350 380, 256 448 C162 380, 96 280, 96 128 C112 90, 172 70, 256 64 Z" fill="url(#shieldGrad)" stroke="#60a5fa" stroke-width="6"/>
+
+    <!-- Shield Inner Body -->
+    <path d="M256 80 C326 86, 380 102, 396 136 C396 268, 336 360, 256 424 C176 360, 116 268, 116 136 C132 102, 186 86, 256 80 Z" fill="url(#shieldInner)"/>
+
+    <!-- Clipboard Frame -->
+    <rect x="180" y="160" width="152" height="200" rx="16" fill="#ffffff" stroke="#94a3b8" stroke-width="6"/>
+
+    <!-- Clipboard Clip -->
+    <rect x="216" y="144" width="80" height="28" rx="8" fill="#475569"/>
+    <circle cx="256" cy="158" r="6" fill="#ffffff"/>
+
+    <!-- Clipboard Lines -->
+    <line x1="210" y1="205" x2="302" y2="205" stroke="#cbd5e1" stroke-width="8" stroke-linecap="round"/>
+    <line x1="210" y1="235" x2="302" y2="235" stroke="#cbd5e1" stroke-width="8" stroke-linecap="round"/>
+    <line x1="210" y1="265" x2="270" y2="265" stroke="#cbd5e1" stroke-width="8" stroke-linecap="round"/>
+
+    <!-- Checkmark Badge -->
+    <path d="M200 270 L245 315 L330 220" fill="none" stroke="url(#checkGrad)" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" filter="url(#shadow)"/>
+  </g>
+</svg>
