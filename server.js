@@ -1059,116 +1059,30 @@ async function ensureRBACSchema() {
       await pool.query("UPDATE employees SET account_status = 'APROVADO' WHERE account_status IS NULL");
     } catch (e) {}
 
-    // Seed dos usuários padrão para demonstração real do RBAC no MySQL
-    const seedUsers = [
-      {
-        id: 'emp-moises-admin',
-        full_name: 'Moisés Silva (Super Admin Global)',
-        email: 'moisestj86@gmail.com',
-        cpf: '054.892.116-32',
-        registration_number: 'RUF-0001',
-        role: 'SUPER_ADMIN',
-        account_status: 'APROVADO',
-        password: '123',
-        department_id: 'dept-5',
-        can_create_pop: 1,
-        can_edit_pop: 1
-      },
-      {
-        id: 'emp-carlos-superadmin',
-        full_name: 'Carlos Eduardo (Super Admin)',
-        email: 'carlos.admin@rufato.com.br',
-        cpf: '111.222.333-44',
-        registration_number: '00101',
-        role: 'SUPER_ADMIN',
-        account_status: 'APROVADO',
-        password: '123',
-        department_id: 'dept-6',
-        can_create_pop: 1,
-        can_edit_pop: 1
-      },
-      {
-        id: 'emp-mariana-admin',
-        full_name: 'Mariana Souza (Admin de Setor)',
-        email: 'mariana.producao@rufato.com.br',
-        cpf: '222.333.444-55',
-        registration_number: '00204',
-        role: 'ADMIN',
-        account_status: 'APROVADO',
-        password: '123',
-        department_id: 'dept-1',
-        managed_department_ids: JSON.stringify(['dept-1', 'dept-2']),
-        can_create_pop: 1,
-        can_edit_pop: 1
-      },
-      {
-        id: 'emp-marcos-admin',
-        full_name: 'Marcos Oliveira (Admin de Setor)',
-        email: 'marcos.expedicao@rufato.com.br',
-        cpf: '333.444.555-66',
-        registration_number: '00310',
-        role: 'ADMIN',
-        account_status: 'APROVADO',
-        password: '123',
-        department_id: 'dept-4',
-        managed_department_ids: JSON.stringify(['dept-4']),
-        can_create_pop: 1,
-        can_edit_pop: 1
-      },
-      {
-        id: 'emp-roberto-user',
-        full_name: 'Roberto Alves (Operador Padrão)',
-        email: 'roberto.operador@rufato.com.br',
-        cpf: '444.555.666-77',
-        registration_number: '00412',
-        role: 'USUARIO',
-        account_status: 'APROVADO',
-        password: '123',
-        department_id: 'dept-1',
-        can_create_pop: 0,
-        can_edit_pop: 0
-      },
-      {
-        id: 'emp-aline-pendente',
-        full_name: 'Aline Costa (Cadastro Pendente)',
-        email: 'aline.costa@rufato.com.br',
-        cpf: '555.666.777-88',
-        registration_number: '00530',
-        role: 'USUARIO',
-        account_status: 'PENDENTE',
-        password: '123',
-        department_id: 'dept-3',
-        can_create_pop: 0,
-        can_edit_pop: 0
-      }
-    ];
-
-    for (const u of seedUsers) {
-      const [existing] = await pool.query('SELECT id FROM employees WHERE LOWER(email) = ?', [u.email.toLowerCase()]);
-      if (existing.length === 0) {
-        await pool.query(
-          `INSERT INTO employees 
-            (id, company_id, department_id, position_id, full_name, cpf, registration_number, email, role, account_status, managed_department_ids, can_create_pop, can_edit_pop, password, admission_date, status)
-           VALUES (?, 'comp-1', ?, 'pos-1', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), 'active')`,
-          [
-            u.id, u.department_id, u.full_name, u.cpf, u.registration_number, u.email,
-            u.role, u.account_status, u.managed_department_ids || null,
-            u.can_create_pop || 0, u.can_edit_pop || 0, u.password
-          ]
-        );
-      } else {
-        // Atualiza campos de RBAC e senha caso o usuário já existisse
-        await pool.query(
-          `UPDATE employees SET 
-             role = ?, 
-             account_status = ?, 
-             password = COALESCE(password, '123'),
-             managed_department_ids = COALESCE(managed_department_ids, ?)
-           WHERE id = ?`,
-          [u.role, u.account_status, u.managed_department_ids || null, existing[0].id]
-        );
-      }
+    // Garante que apenas o Super Admin Global (moisestj86@gmail.com) exista caso a tabela esteja limpa
+    const [moisesExisting] = await pool.query('SELECT id FROM employees WHERE LOWER(email) = ?', ['moisestj86@gmail.com']);
+    if (moisesExisting.length === 0) {
+      await pool.query(
+        `INSERT INTO employees 
+          (id, company_id, department_id, position_id, full_name, cpf, registration_number, email, role, account_status, managed_department_ids, can_create_pop, can_edit_pop, password, admission_date, status)
+         VALUES ('emp-moises-admin', 'comp-1', 'dept-5', 'pos-1', 'Moisés Silva (Super Admin Global)', '054.892.116-32', 'RUF-0001', 'moisestj86@gmail.com', 'SUPER_ADMIN', 'APROVADO', NULL, 1, 1, '123', CURDATE(), 'active')`
+      );
+    } else {
+      await pool.query(
+        "UPDATE employees SET role = 'SUPER_ADMIN', account_status = 'APROVADO', can_create_pop = 1, can_edit_pop = 1 WHERE LOWER(email) = ?",
+        ['moisestj86@gmail.com']
+      );
     }
+
+    // Limpeza de usuários de teste/demonstração removidos pelo usuário
+    const demoEmails = [
+      'aline.costa@rufato.com.br',
+      'carlos.admin@rufato.com.br',
+      'mariana.producao@rufato.com.br',
+      'marcos.expedicao@rufato.com.br',
+      'roberto.operador@rufato.com.br'
+    ];
+    await pool.query('DELETE FROM employees WHERE LOWER(email) IN (?)', [demoEmails]).catch(() => {});
 
     console.log('[POP CONTROL] Validação e sincronização de usuários RBAC concluída com sucesso.');
   } catch (err) {
