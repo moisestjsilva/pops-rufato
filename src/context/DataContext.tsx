@@ -93,6 +93,7 @@ interface DataContextType {
   approvePOPVersion: (popId: string, versionId: string, comments: string, currentUser: Employee, publishImmediately?: boolean) => void;
   rejectPOPVersion: (popId: string, versionId: string, reason: string, currentUser: Employee) => void;
   publishPOPVersion: (popId: string, versionId: string, currentUser: Employee) => void;
+  deletePOP: (popId: string, currentUser?: Employee) => Promise<boolean>;
 
   // Science & Signature
   confirmScience: (
@@ -634,6 +635,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const deletePOP = async (popId: string, currentUser?: Employee): Promise<boolean> => {
+    const target = pops.find(p => p.id === popId);
+    if (!target) return false;
+
+    setPops(prev => prev.filter(p => p.id !== popId));
+
+    try {
+      await apiClient.deletePOP(popId);
+    } catch (err) {
+      console.warn('[MySQL] Erro ao excluir POP no banco:', err);
+    }
+
+    if (currentUser) {
+      addAuditLog(
+        'EXCLUSÃO DE POP',
+        'POP',
+        target.code,
+        `Excluído procedimento ${target.code} - ${target.title} do setor ${target.department_name}.`,
+        currentUser
+      );
+    }
+
+    return true;
+  };
+
   const createNewPOPVersion = (popId: string, versionNumber: string, changeReason: string, content: any, currentUser: Employee) => {
     const targetPOP = pops.find(p => p.id === popId);
     if (!targetPOP) return;
@@ -1057,6 +1083,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       deleteEmployee,
       createPOP,
       updatePOP,
+      deletePOP,
       createNewPOPVersion,
       submitForApproval,
       approvePOPVersion,

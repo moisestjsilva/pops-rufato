@@ -760,6 +760,45 @@ app.put('/api/pops/:id', async (req, res) => {
   }
 });
 
+app.delete('/api/pops/:id', async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const popId = req.params.id;
+
+    // Remove assinaturas vinculadas às ciências deste POP
+    await conn.query(
+      `DELETE s FROM signatures s
+       INNER JOIN acknowledgements a ON s.acknowledgement_id = a.id
+       WHERE a.pop_id = ?`,
+      [popId]
+    );
+
+    // Remove ciências
+    await conn.query('DELETE FROM acknowledgements WHERE pop_id = ?', [popId]);
+
+    // Remove histórico de alterações
+    await conn.query('DELETE FROM pop_change_logs WHERE pop_id = ?', [popId]);
+
+    // Remove atribuições
+    await conn.query('DELETE FROM pop_assignments WHERE pop_id = ?', [popId]);
+
+    // Remove versões
+    await conn.query('DELETE FROM pop_versions WHERE pop_id = ?', [popId]);
+
+    // Remove o POP principal
+    await conn.query('DELETE FROM pops WHERE id = ?', [popId]);
+
+    await conn.commit();
+    res.json({ success: true, message: 'POP excluído com sucesso.' });
+  } catch (err) {
+    await conn.rollback();
+    res.status(500).json({ error: err.message });
+  } finally {
+    conn.release();
+  }
+});
+
 // -------------------------------------------------------------
 // 6. CIÊNCIAS E ASSINATURAS (Acknowledgements & Signatures)
 // -------------------------------------------------------------

@@ -11,6 +11,8 @@ import {
   Printer, 
   QrCode, 
   PenTool, 
+  Trash2,
+  Loader2,
   Award,
   AlertTriangle,
   Image as ImageIcon,
@@ -40,8 +42,22 @@ export const POPViewer: React.FC<POPViewerProps> = ({
   onEdit,
   onBack
 }) => {
-  const { currentUser, canEditPOP } = useAuth();
-  const { acknowledgements, confirmScience, employees } = useData();
+  const { currentUser, canEditPOP, canDeletePOP } = useAuth();
+  const { acknowledgements, confirmScience, employees, deletePOP } = useData();
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleConfirmDelete = async () => {
+    try {
+      setIsDeleting(true);
+      await deletePOP(pop.id, currentUser || undefined);
+      setShowDeleteModal(false);
+      onBack?.();
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const [showHistory, setShowHistory] = useState(false);
   const [showSignModal, setShowSignModal] = useState(false);
@@ -168,6 +184,17 @@ export const POPViewer: React.FC<POPViewerProps> = ({
             >
               <PenTool className="w-3.5 h-3.5" />
               <span>{pop.status === 'publicado' ? 'Revisar / Nova Versão' : 'Editar Documento'}</span>
+            </button>
+          )}
+
+          {canDeletePOP(pop) && (
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              className="px-3 py-1.5 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg border border-rose-200 flex items-center gap-1.5 transition-colors"
+              title="Excluir Procedimento"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Excluir POP</span>
             </button>
           )}
         </div>
@@ -528,6 +555,68 @@ export const POPViewer: React.FC<POPViewerProps> = ({
                 <span>{selectedImageModal.caption}</span>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação de Exclusão de POP */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-5 animate-in zoom-in-95">
+            <div className="flex items-start justify-between">
+              <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="font-extrabold text-slate-900 text-base">
+                Excluir Procedimento Operacional?
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Você está prestes a excluir permanentemente o documento{' '}
+                <strong className="text-slate-900">{pop.code} - {pop.title}</strong>{' '}
+                do setor <strong className="text-slate-900">{pop.department_name}</strong>.
+              </p>
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-[11px] leading-relaxed">
+                ⚠️ <strong>Atenção:</strong> Esta ação é irreversível e excluirá todo o histórico de revisões e registros de ciência associados no banco MySQL.
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleConfirmDelete}
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl shadow-sm flex items-center gap-2 transition-transform active:scale-95 disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Excluindo...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Excluir Definitivamente</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

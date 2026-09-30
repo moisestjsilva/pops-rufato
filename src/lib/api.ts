@@ -175,6 +175,12 @@ export const apiClient = {
     return res.json();
   },
 
+  async deletePOP(id: string) {
+    const res = await fetch(`${API_BASE}/pops/${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Erro ao excluir POP no banco');
+    return res.json();
+  },
+
   // 6. Ciências e Assinaturas
   async getAcknowledgements() {
     const res = await fetch(`${API_BASE}/acknowledgements`);

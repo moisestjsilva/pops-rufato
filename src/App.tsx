@@ -152,6 +152,7 @@ function MainApp() {
           <POPsListPage
             onNavigate={navigateTo}
             onSelectPOP={handleSelectPOP}
+            onEditPOP={handleEditPOP}
             onCreatePOP={() => navigateTo('/pops/criar')}
           />
         );
