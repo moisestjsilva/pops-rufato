@@ -176,6 +176,16 @@ export const apiClient = {
     return res.json();
   },
 
+  async createPOPVersion(popId: string, versionPayload: any) {
+    const res = await fetch(`${API_BASE}/pops/${popId}/versions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(versionPayload)
+    });
+    if (!res.ok) throw new Error('Erro ao criar versão do POP no banco');
+    return res.json();
+  },
+
   async deletePOP(id: string) {
     const res = await fetch(`${API_BASE}/pops/${id}`, { method: 'DELETE' });
     if (!res.ok) throw new Error('Erro ao excluir POP no banco');

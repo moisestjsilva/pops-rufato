@@ -605,7 +605,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const payload = {
       ...updatedFields,
-      ...extraFields
+      ...extraFields,
+      content: updatedVersionContent
     };
 
     apiClient.updatePOP(popId, payload).catch(err => console.warn('[MySQL] Erro ao atualizar POP:', err));
@@ -708,6 +709,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         versions: [...(p.versions || []), newVersionObj]
       };
     }));
+
+    apiClient.createPOPVersion(popId, {
+      id: newVersionId,
+      version_number: versionNumber,
+      change_reason: changeReason,
+      author_id: currentUser.id,
+      content,
+      status: 'em_revisao'
+    }).catch(err => console.warn('[MySQL] Erro ao criar nova versão do POP:', err));
 
     addAuditLog(
       'NOVA VERSÃO DE POP',

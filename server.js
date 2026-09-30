@@ -32,6 +32,9 @@ const dbConfig = {
 
 const pool = mysql.createPool(dbConfig);
 
+// Ensure pop_versions.content is LONGTEXT for storing base64 images and large procedures
+pool.query('ALTER TABLE pop_versions MODIFY COLUMN content LONGTEXT NOT NULL').catch(() => {});
+
 // Health check endpoint
 app.get('/api/health', async (req, res) => {
   try {
@@ -773,7 +776,7 @@ app.put('/api/pops/:id', async (req, res) => {
     const {
       company_id, department_id, code, title, responsible_name,
       classification, status, review_period_months, next_review_date, current_version,
-      assigned_department_ids, assigned_position_ids
+      assigned_department_ids, assigned_position_ids, content
     } = req.body;
 
     const popId = req.params.id;
@@ -793,6 +796,22 @@ app.put('/api/pops/:id', async (req, res) => {
        WHERE id = ?`,
       [company_id, department_id, code, title, responsible_name, classification, status, review_period_months, next_review_date, current_version, popId]
     );
+
+    // Update version content (objective, steps, images, etc.) if provided
+    if (content) {
+      const contentJson = JSON.stringify(content);
+      if (current_version) {
+        await conn.query(
+          `UPDATE pop_versions SET content = ? WHERE pop_id = ? AND version_number = ?`,
+          [contentJson, popId, current_version]
+        );
+      } else {
+        await conn.query(
+          `UPDATE pop_versions SET content = ? WHERE pop_id = ? ORDER BY created_at DESC LIMIT 1`,
+          [contentJson, popId]
+        );
+      }
+    }
 
     if (Array.isArray(assigned_department_ids) || Array.isArray(assigned_position_ids)) {
       await conn.query('DELETE FROM pop_assignments WHERE pop_id = ?', [popId]);
@@ -818,6 +837,43 @@ app.put('/api/pops/:id', async (req, res) => {
 
     await conn.commit();
     res.json({ success: true });
+  } catch (err) {
+    await conn.rollback();
+    res.status(500).json({ error: err.message });
+  } finally {
+    conn.release();
+  }
+});
+
+// Create new version of a POP
+app.post('/api/pops/:id/versions', async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const popId = req.params.id;
+    const { id, version_number, change_reason, author_id, content, status } = req.body;
+    const verId = id || `ver-${Date.now()}`;
+    const verNum = version_number || '02';
+    const verStatus = status || 'em_revisao';
+
+    await conn.query(
+      `INSERT INTO pop_versions 
+        (id, pop_id, version_number, content, change_reason, author_id, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        verId, popId, verNum, JSON.stringify(content || {}),
+        change_reason || 'Nova versão do procedimento', author_id || null, verStatus
+      ]
+    );
+
+    await conn.query(
+      `UPDATE pops SET current_version = ?, status = ? WHERE id = ?`,
+      [verNum, verStatus, popId]
+    );
+
+    await conn.commit();
+    res.status(201).json({ id: verId, success: true });
   } catch (err) {
     await conn.rollback();
     res.status(500).json({ error: err.message });
