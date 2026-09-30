@@ -211,28 +211,28 @@ export const POPEditCreateForm: React.FC<POPEditCreateFormProps> = ({
     };
 
     if (isEditing && initialPOP) {
+      updatePOP(
+        initialPOP.id,
+        {
+          code,
+          title,
+          company_id: companyId,
+          department_id: departmentId,
+          responsible_name: responsibleName,
+          classification,
+          review_period_months: reviewPeriodMonths,
+          assigned_department_ids: assignedDepts,
+          assigned_position_ids: assignedPositions
+        },
+        isNewVersion ? undefined : versionContent,
+        currentUser
+      );
+
       if (isNewVersion) {
         createNewPOPVersion(
           initialPOP.id,
           versionNumber,
           changeReason,
-          versionContent,
-          currentUser
-        );
-      } else {
-        updatePOP(
-          initialPOP.id,
-          {
-            code,
-            title,
-            company_id: companyId,
-            department_id: departmentId,
-            responsible_name: responsibleName,
-            classification,
-            review_period_months: reviewPeriodMonths,
-            assigned_department_ids: assignedDepts,
-            assigned_position_ids: assignedPositions
-          },
           versionContent,
           currentUser
         );

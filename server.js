@@ -766,10 +766,23 @@ app.post('/api/pops', async (req, res) => {
 });
 
 app.put('/api/pops/:id', async (req, res) => {
+  const conn = await pool.getConnection();
   try {
-    const { title, responsible_name, classification, status, review_period_months, next_review_date, current_version } = req.body;
-    await pool.query(
+    await conn.beginTransaction();
+
+    const {
+      company_id, department_id, code, title, responsible_name,
+      classification, status, review_period_months, next_review_date, current_version,
+      assigned_department_ids, assigned_position_ids
+    } = req.body;
+
+    const popId = req.params.id;
+
+    await conn.query(
       `UPDATE pops SET 
+        company_id = COALESCE(?, company_id),
+        department_id = COALESCE(?, department_id),
+        code = COALESCE(?, code),
         title = COALESCE(?, title),
         responsible_name = COALESCE(?, responsible_name),
         classification = COALESCE(?, classification),
@@ -778,11 +791,38 @@ app.put('/api/pops/:id', async (req, res) => {
         next_review_date = COALESCE(?, next_review_date),
         current_version = COALESCE(?, current_version)
        WHERE id = ?`,
-      [title, responsible_name, classification, status, review_period_months, next_review_date, current_version, req.params.id]
+      [company_id, department_id, code, title, responsible_name, classification, status, review_period_months, next_review_date, current_version, popId]
     );
+
+    if (Array.isArray(assigned_department_ids) || Array.isArray(assigned_position_ids)) {
+      await conn.query('DELETE FROM pop_assignments WHERE pop_id = ?', [popId]);
+
+      if (Array.isArray(assigned_department_ids)) {
+        for (const deptId of assigned_department_ids) {
+          await conn.query(
+            'INSERT INTO pop_assignments (id, pop_id, department_id) VALUES (?, ?, ?)',
+            [`asgn-dept-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`, popId, deptId]
+          );
+        }
+      }
+
+      if (Array.isArray(assigned_position_ids)) {
+        for (const posId of assigned_position_ids) {
+          await conn.query(
+            'INSERT INTO pop_assignments (id, pop_id, position_id) VALUES (?, ?, ?)',
+            [`asgn-pos-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`, popId, posId]
+          );
+        }
+      }
+    }
+
+    await conn.commit();
     res.json({ success: true });
   } catch (err) {
+    await conn.rollback();
     res.status(500).json({ error: err.message });
+  } finally {
+    conn.release();
   }
 });
 

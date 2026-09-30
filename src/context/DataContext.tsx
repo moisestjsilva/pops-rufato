@@ -588,7 +588,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updatePOP = (popId: string, updatedFields: Partial<POP>, updatedVersionContent?: any, currentUser?: Employee) => {
     const targetPOP = pops.find(p => p.id === popId);
 
-    apiClient.updatePOP(popId, updatedFields).catch(err => console.warn('[MySQL] Erro ao atualizar POP:', err));
+    // Compute updated department_name and company_name if department_id or company_id changed
+    let extraFields: Partial<POP> = {};
+    if (updatedFields.department_id) {
+      const targetDept = departments.find(d => d.id === updatedFields.department_id);
+      if (targetDept) {
+        extraFields.department_name = targetDept.name;
+      }
+    }
+    if (updatedFields.company_id) {
+      const targetComp = companies.find(c => c.id === updatedFields.company_id);
+      if (targetComp) {
+        extraFields.company_name = targetComp.trade_name;
+      }
+    }
+
+    const payload = {
+      ...updatedFields,
+      ...extraFields
+    };
+
+    apiClient.updatePOP(popId, payload).catch(err => console.warn('[MySQL] Erro ao atualizar POP:', err));
 
     setPops(prev => prev.map(p => {
       if (p.id !== popId) return p;
@@ -601,7 +621,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return {
               ...v,
               content: updatedVersionContent,
-              document_hash: generateSimpleHash(p.code + v.version_number + JSON.stringify(updatedVersionContent))
+              document_hash: generateSimpleHash((payload.code || p.code) + v.version_number + JSON.stringify(updatedVersionContent))
             };
           }
           return v;
@@ -610,7 +630,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return {
         ...p,
-        ...updatedFields,
+        ...payload,
         versions: updatedVersions,
         updated_at: new Date().toISOString()
       };
