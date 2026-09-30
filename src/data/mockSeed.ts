@@ -181,6 +181,30 @@ export const initialPositions: Position[] = [
 ];
 
 export const initialEmployees: Employee[] = [
+  // 0. SUPER ADMIN (Moisés Silva - Administrador Global Supremo)
+  {
+    id: 'emp-moises-globaladmin',
+    company_id: 'c1111111-1111-1111-1111-111111111111',
+    department_id: 'd3333333-3333-3333-3333-333333333333',
+    position_id: 'p5555555-5555-5555-5555-555555555555',
+    company_name: 'Rufato Indústria de Móveis',
+    department_name: 'Administrativo',
+    position_title: 'Super Administrador Global',
+    full_name: 'Moisés Silva',
+    cpf: '054.892.116-32',
+    registration_number: 'RUF-0001',
+    email: 'moisestj86@gmail.com',
+    phone: '(32) 99841-2201',
+    password: '123',
+    role: 'SUPER_ADMIN',
+    account_status: 'APROVADO',
+    can_create_pop: true,
+    can_edit_pop: true,
+    admission_date: '2020-01-01',
+    status: 'active',
+    created_at: '2025-01-01T00:00:00Z',
+    updated_at: '2025-01-01T00:00:00Z'
+  },
   // 1. SUPER ADMIN (Administrador Global) - Controle Total
   {
     id: 'e1111111-1111-1111-1111-111111111111',
