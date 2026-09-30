@@ -144,8 +144,9 @@ export const apiClient = {
 
   async deleteEmployee(id: string) {
     const res = await fetch(`${API_BASE}/employees/${id}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error('Erro ao excluir funcionário');
-    return res.json();
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || data.message || 'Erro ao excluir funcionário');
+    return data;
   },
 
   // 5. POPs

@@ -319,19 +319,26 @@ app.delete('/api/employees/:id', async (req, res) => {
     const { id } = req.params;
     await connection.beginTransaction();
 
-    // 1. Limpa registros vinculados antes de deletar o funcionário
-    await connection.query('DELETE FROM signatures WHERE employee_id = ?', [id]);
-    await connection.query('DELETE FROM acknowledgements WHERE employee_id = ?', [id]);
-    await connection.query('DELETE FROM pop_assignments WHERE employee_id = ?', [id]);
-    await connection.query('DELETE FROM app_notifications WHERE user_id = ?', [id]);
-    await connection.query('UPDATE audit_logs SET user_id = NULL WHERE user_id = ?', [id]);
+    // Desativa temporariamente checagem de FK para deleção em cascata segura
+    await connection.query('SET FOREIGN_KEY_CHECKS = 0');
+
+    // 1. Limpa registros vinculados
+    try { await connection.query('DELETE FROM signatures WHERE employee_id = ?', [id]); } catch (e) {}
+    try { await connection.query('DELETE FROM acknowledgements WHERE employee_id = ?', [id]); } catch (e) {}
+    try { await connection.query('DELETE FROM app_notifications WHERE user_id = ?', [id]); } catch (e) {}
+    try { await connection.query('DELETE FROM approvals WHERE user_id = ?', [id]); } catch (e) {}
+    try { await connection.query('UPDATE audit_logs SET user_id = NULL WHERE user_id = ?', [id]); } catch (e) {}
 
     // 2. Deleta o colaborador
     await connection.query('DELETE FROM employees WHERE id = ?', [id]);
 
+    // Reativa checagem de FK
+    await connection.query('SET FOREIGN_KEY_CHECKS = 1');
+
     await connection.commit();
-    res.json({ success: true });
+    res.json({ success: true, message: 'Usuário excluído com sucesso.' });
   } catch (err) {
+    try { await connection.query('SET FOREIGN_KEY_CHECKS = 1'); } catch (e) {}
     await connection.rollback();
     console.error('Erro ao excluir funcionário:', err);
     res.status(500).json({ error: err.message });

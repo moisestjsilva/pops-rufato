@@ -168,10 +168,15 @@ export const AccessControlPage: React.FC = () => {
     if (!userToDelete) return;
     setIsDeletingUser(true);
     try {
-      await deleteUser(userToDelete.id);
-      setUserToDelete(null);
-    } catch (err) {
+      const ok = await deleteUser(userToDelete.id);
+      if (ok) {
+        setUserToDelete(null);
+      } else {
+        alert('Não foi possível excluir o usuário no banco de dados. Tente novamente.');
+      }
+    } catch (err: any) {
       console.error('Erro ao excluir usuário:', err);
+      alert('Erro ao excluir usuário: ' + (err.message || 'Falha de comunicação.'));
     } finally {
       setIsDeletingUser(false);
     }
