@@ -901,7 +901,7 @@ async function ensureRBACSchema() {
     // Seed dos usuários padrão para demonstração real do RBAC no MySQL
     const seedUsers = [
       {
-        id: 'emp-moises-globaladmin',
+        id: 'emp-moises-admin',
         full_name: 'Moisés Silva (Super Admin Global)',
         email: 'moisestj86@gmail.com',
         cpf: '054.892.116-32',
@@ -923,19 +923,6 @@ async function ensureRBACSchema() {
         account_status: 'APROVADO',
         password: '123',
         department_id: 'dept-6',
-        can_create_pop: 1,
-        can_edit_pop: 1
-      },
-      {
-        id: 'emp-moises-admin',
-        full_name: 'Moisés Silva (Super Admin)',
-        email: 'moises.silva@rufato.com.br',
-        cpf: '054.892.116-33',
-        registration_number: 'RUF-0145',
-        role: 'SUPER_ADMIN',
-        account_status: 'APROVADO',
-        password: '123',
-        department_id: 'dept-5',
         can_create_pop: 1,
         can_edit_pop: 1
       },
