@@ -44,5 +44,8 @@ jobs:
           TARGET: "/home/${{ secrets.CLOUDPANEL_SITE_USER || 'pops' }}/htdocs/${{ secrets.CLOUDPANEL_SITE || 'pops.moveisrufato.com.br' }}/"
           SCRIPT_AFTER: |
             cd /home/${{ secrets.CLOUDPANEL_SITE_USER || 'pops' }}/htdocs/${{ secrets.CLOUDPANEL_SITE || 'pops.moveisrufato.com.br' }}/
-            fuser -k 3031/tcp || true
+            pkill -9 -f 'node.*server.js' || fuser -k -9 3031/tcp || true
+            sleep 2
             nohup /home/pops/.nvm/versions/node/v24.21.0/bin/node server.js > app.log 2>&1 &
+            sleep 2
+            cat app.log
