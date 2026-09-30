@@ -868,21 +868,29 @@ app.get('*', (req, res) => {
 
 async function ensureRBACSchema() {
   try {
-    const alterQueries = [
-      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS account_status ENUM('PENDENTE', 'APROVADO', 'BLOQUEADO') NOT NULL DEFAULT 'APROVADO'",
-      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS managed_department_ids TEXT DEFAULT NULL",
-      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS can_create_pop TINYINT(1) NOT NULL DEFAULT 0",
-      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS can_edit_pop TINYINT(1) NOT NULL DEFAULT 0",
-      "ALTER TABLE employees ADD COLUMN IF NOT EXISTS password VARCHAR(255) DEFAULT '123'",
-      "ALTER TABLE employees MODIFY COLUMN role ENUM('SUPER_ADMIN', 'ADMIN', 'USUARIO', 'ADMINISTRADOR', 'GESTOR', 'RH', 'FUNCIONARIO') NOT NULL DEFAULT 'USUARIO'"
-    ];
-    for (const q of alterQueries) {
-      try {
-        await pool.query(q);
-      } catch (e) {
-        // Fallback para versões mais antigas do MySQL
-      }
+    const [existingCols] = await pool.query(
+      "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'employees'"
+    );
+    const colNames = existingCols.map(c => c.COLUMN_NAME.toLowerCase());
+
+    if (!colNames.includes('account_status')) {
+      await pool.query("ALTER TABLE employees ADD COLUMN account_status ENUM('PENDENTE', 'APROVADO', 'BLOQUEADO') NOT NULL DEFAULT 'APROVADO'");
     }
+    if (!colNames.includes('managed_department_ids')) {
+      await pool.query("ALTER TABLE employees ADD COLUMN managed_department_ids TEXT DEFAULT NULL");
+    }
+    if (!colNames.includes('can_create_pop')) {
+      await pool.query("ALTER TABLE employees ADD COLUMN can_create_pop TINYINT(1) NOT NULL DEFAULT 0");
+    }
+    if (!colNames.includes('can_edit_pop')) {
+      await pool.query("ALTER TABLE employees ADD COLUMN can_edit_pop TINYINT(1) NOT NULL DEFAULT 0");
+    }
+    if (!colNames.includes('password')) {
+      await pool.query("ALTER TABLE employees ADD COLUMN password VARCHAR(255) DEFAULT '123'");
+    }
+    try {
+      await pool.query("ALTER TABLE employees MODIFY COLUMN role ENUM('SUPER_ADMIN', 'ADMIN', 'USUARIO', 'ADMINISTRADOR', 'GESTOR', 'RH', 'FUNCIONARIO') NOT NULL DEFAULT 'USUARIO'");
+    } catch (e) {}
 
     // Garante que todas as contas existentes tenham senha padrão '123' caso nula
     try {
