@@ -158,7 +158,7 @@ function MainApp() {
         );
 
       case '/controle-acesso':
-        return <AccessControlPage />;
+        return <AccessControlPage onNavigate={navigateTo} />;
 
       case '/aprovacoes':
         return (
@@ -184,6 +184,7 @@ function MainApp() {
       case '/pessoas/cargos':
         return <PeopleManagementPage initialTab="cargos" />;
 
+      case '/setores':
       case '/pessoas/setores':
         return <PeopleManagementPage initialTab="setores" />;
 

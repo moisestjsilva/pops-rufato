@@ -30,7 +30,11 @@ import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { Employee, UserRole } from '../types';
 
-export const AccessControlPage: React.FC = () => {
+interface AccessControlPageProps {
+  onNavigate?: (path: string) => void;
+}
+
+export const AccessControlPage: React.FC<AccessControlPageProps> = ({ onNavigate }) => {
   const { 
     currentUser, 
     allUsersList, 
@@ -405,7 +409,7 @@ export const AccessControlPage: React.FC = () => {
       {/* ============================================================== */}
       {activeTab === 'admins' && isSuperAdmin() && (
         <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
                 <Crown className="w-5 h-5 text-purple-600" />
@@ -415,6 +419,15 @@ export const AccessControlPage: React.FC = () => {
                 O Super Admin vincula quais setores cada Admin tem autoridade para criar, editar, excluir POPs e gerenciar usuários.
               </p>
             </div>
+            {onNavigate && (
+              <button
+                onClick={() => onNavigate('/setores')}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-2 transition-all self-start sm:self-auto shrink-0"
+              >
+                <Building2 className="w-4 h-4" />
+                <span>Cadastrar / Gerenciar Setores</span>
+              </button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

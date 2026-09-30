@@ -14,8 +14,8 @@ export const LegalDisclaimerBanner: React.FC = () => {
           <span className="font-bold">Aviso sobre Validade Jurídica de Evidências:</span> Os registros de ciência e assinaturas na tela no POP Control constituem evidências eletrônicas internas de recebimento e capacitação. Assinaturas simples na tela não equivalem automaticamente a assinaturas digitais qualificadas (GOV.BR / ICP-Brasil). Consulte seu departamento jurídico para validar requisitos legais específicos.
         </div>
       </div>
-      <button 
-        onClick={() => setDismissed(true)} 
+      <button
+        onClick={() => setDismissed(true)}
         className="text-amber-700 hover:text-amber-950 p-1 rounded-md transition-colors"
         title="Fechar aviso"
       >

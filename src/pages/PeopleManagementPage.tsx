@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Users, 
   Briefcase, 
@@ -33,6 +33,10 @@ export const PeopleManagementPage: React.FC<PeopleManagementPageProps> = ({ init
 
   const { userRole } = useAuth();
   const [activeTab, setActiveTab] = useState<'funcionarios' | 'cargos' | 'setores'>(initialTab);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
 
   // Modals state
   const [showEmpModal, setShowEmpModal] = useState(false);
@@ -371,23 +375,56 @@ export const PeopleManagementPage: React.FC<PeopleManagementPageProps> = ({ init
               const deptEmployeesCount = employees.filter(e => e.department_id === dept.id).length;
               const deptPositionsCount = positions.filter(p => p.department_id === dept.id).length;
               return (
-                <div key={dept.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono font-bold text-blue-900 text-xs">{dept.code}</span>
-                    <button onClick={() => openDeptModal(dept)} className="text-blue-600 hover:text-blue-800 text-xs font-bold">
-                      Editar
-                    </button>
+                <div key={dept.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3 flex flex-col justify-between hover:shadow-md transition-shadow">
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-bold text-blue-900 text-xs px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-lg">
+                        {dept.code}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <button 
+                          onClick={() => openDeptModal(dept)} 
+                          className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded-lg border border-blue-200 flex items-center gap-1 transition-colors"
+                          title="Editar Setor"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                          <span>Editar</span>
+                        </button>
+                        <button 
+                          onClick={() => {
+                            if (window.confirm(`Tem certeza que deseja excluir o setor "${dept.name}"?`)) {
+                              deleteDepartment(dept.id);
+                            }
+                          }} 
+                          className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 text-xs font-bold rounded-lg border border-slate-200 hover:border-rose-200 transition-colors"
+                          title="Excluir Setor"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-1.5">
+                        <Building2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span>{dept.name}</span>
+                      </h3>
+                      <div className="text-xs text-slate-500 space-y-1 mt-1.5">
+                        <div><strong className="text-slate-700">Gestor Responsável:</strong> {dept.manager_name || 'Não atribuído'}</div>
+                        <div><strong className="text-slate-700">Empresa:</strong> {dept.company_name || 'Rufato Móveis'}</div>
+                      </div>
+                    </div>
                   </div>
 
-                  <h3 className="font-extrabold text-slate-900 text-base">{dept.name}</h3>
-                  <div className="text-xs text-slate-500 space-y-1">
-                    <div><strong>Gestor Responsável:</strong> {dept.manager_name || 'Roberto Líder'}</div>
-                    <div><strong>Empresa:</strong> {dept.company_name}</div>
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-600">
-                    <span>{deptEmployeesCount} Funcionários</span>
-                    <span>{deptPositionsCount} Cargos</span>
+                  <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-600">
+                    <span className="flex items-center gap-1 text-slate-500">
+                      <Users className="w-3.5 h-3.5 text-slate-400" />
+                      {deptEmployeesCount} Colaboradores
+                    </span>
+                    <span className="flex items-center gap-1 text-slate-500">
+                      <Briefcase className="w-3.5 h-3.5 text-slate-400" />
+                      {deptPositionsCount} Cargos
+                    </span>
                   </div>
                 </div>
               );

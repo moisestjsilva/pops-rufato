@@ -32,7 +32,7 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentPath, onNavigate }) => {
-  const { userRole, canCreatePOP, isSuperAdmin, allUsersList } = useAuth();
+  const { userRole, canCreatePOP, isSuperAdmin, isSectorAdmin, allUsersList } = useAuth();
 
   const [openPOPs, setOpenPOPs] = useState(true);
   const [openPessoas, setOpenPessoas] = useState(false);
@@ -165,16 +165,27 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPath, onNavigate }) => 
           )}
         </div>
 
-        {/* Pessoas Group (Admin, Gestor, RH) */}
-        {(userRole === 'ADMINISTRADOR' || userRole === 'RH' || userRole === 'GESTOR') && (
+        {/* Setores da Empresa */}
+        {(isSuperAdmin() || isSectorAdmin() || userRole === 'ADMINISTRADOR' || userRole === 'GESTOR') && (
+          <button
+            onClick={() => handleNav('/setores')}
+            className={`w-full ${navItemClass(isLinkActive('/setores') || isLinkActive('/pessoas/setores'))} text-slate-300 hover:text-white hover:bg-slate-800 ${isLinkActive('/setores') || isLinkActive('/pessoas/setores') ? '!bg-blue-600 !text-white' : ''}`}
+          >
+            <Building2 className="w-4 h-4 text-emerald-400" />
+            <span className="flex-1 text-left font-bold">Setores da Empresa</span>
+          </button>
+        )}
+
+        {/* Pessoas & Estrutura Group (Admin, Gestor, RH) */}
+        {(isSuperAdmin() || isSectorAdmin() || userRole === 'ADMINISTRADOR' || userRole === 'RH' || userRole === 'GESTOR') && (
           <div>
             <button
               onClick={() => setOpenPessoas(!openPessoas)}
               className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold text-slate-300 hover:bg-slate-800 transition-colors"
             >
               <div className="flex items-center gap-2.5">
-                <Users className="w-4 h-4 text-emerald-400" />
-                <span>Pessoas</span>
+                <Users className="w-4 h-4 text-teal-400" />
+                <span>Colaboradores & Cargos</span>
               </div>
               {openPessoas ? (
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
@@ -200,8 +211,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPath, onNavigate }) => 
                 </button>
 
                 <button
-                  onClick={() => handleNav('/pessoas/setores')}
-                  className={`w-full ${subNavItemClass(isLinkActive('/pessoas/setores'))} text-slate-300 hover:text-white hover:bg-slate-800/60 ${isLinkActive('/pessoas/setores') ? '!bg-emerald-900/50 !text-emerald-300' : ''}`}
+                  onClick={() => handleNav('/setores')}
+                  className={`w-full ${subNavItemClass(isLinkActive('/setores') || isLinkActive('/pessoas/setores'))} text-slate-300 hover:text-white hover:bg-slate-800/60 ${isLinkActive('/setores') || isLinkActive('/pessoas/setores') ? '!bg-emerald-900/50 !text-emerald-300' : ''}`}
                 >
                   <span>Setores</span>
                 </button>
@@ -210,8 +221,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPath, onNavigate }) => 
           </div>
         )}
 
-        {/* Empresas (Admin) */}
-        {userRole === 'ADMINISTRADOR' && (
+        {/* Empresas (Super Admin / Admin) */}
+        {(isSuperAdmin() || userRole === 'ADMINISTRADOR') && (
           <button
             onClick={() => handleNav('/empresas')}
             className={`w-full ${navItemClass(isLinkActive('/empresas'))} text-slate-300 hover:text-white hover:bg-slate-800 ${isLinkActive('/empresas') ? '!bg-blue-600 !text-white' : ''}`}
@@ -301,7 +312,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPath, onNavigate }) => 
         </button>
 
         {/* Log de Auditoria */}
-        {(userRole === 'ADMINISTRADOR' || userRole === 'RH') && (
+        {(isSuperAdmin() || userRole === 'ADMINISTRADOR' || userRole === 'RH') && (
           <button
             onClick={() => handleNav('/auditoria')}
             className={`w-full ${navItemClass(isLinkActive('/auditoria'))} text-slate-300 hover:text-white hover:bg-slate-800 ${isLinkActive('/auditoria') ? '!bg-blue-600 !text-white' : ''}`}
