@@ -207,5 +207,82 @@ export const apiClient = {
     });
     if (!res.ok) throw new Error('Erro ao gravar log de auditoria');
     return res.json();
+  },
+
+  // 8. Autenticação & RBAC Real
+  async login(identifier: string, password?: string) {
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier, password })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.message || 'Falha ao autenticar.');
+    }
+    return data;
+  },
+
+  async register(userData: any) {
+    const res = await fetch(`${API_BASE}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userData)
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.message || 'Falha ao registrar usuário.');
+    }
+    return data;
+  },
+
+  async getMe(token: string) {
+    const res = await fetch(`${API_BASE}/auth/me`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) {
+      throw new Error('Sessão expirada.');
+    }
+    return res.json();
+  },
+
+  async approveUser(userId: string, role: string, managedDeptIds?: string[]) {
+    const res = await fetch(`${API_BASE}/auth/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, role, managedDeptIds })
+    });
+    if (!res.ok) throw new Error('Erro ao aprovar usuário');
+    return res.json();
+  },
+
+  async toggleUserBlock(userId: string, newStatus: string) {
+    const res = await fetch(`${API_BASE}/auth/toggle-block`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, newStatus })
+    });
+    if (!res.ok) throw new Error('Erro ao alterar status do usuário');
+    return res.json();
+  },
+
+  async updatePermissions(userId: string, can_create_pop: boolean, can_edit_pop: boolean) {
+    const res = await fetch(`${API_BASE}/auth/permissions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, can_create_pop, can_edit_pop })
+    });
+    if (!res.ok) throw new Error('Erro ao atualizar permissões');
+    return res.json();
+  },
+
+  async assignAdminSectors(adminId: string, deptIds: string[]) {
+    const res = await fetch(`${API_BASE}/auth/assign-sectors`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ adminId, deptIds })
+    });
+    if (!res.ok) throw new Error('Erro ao vincular setores');
+    return res.json();
   }
 };

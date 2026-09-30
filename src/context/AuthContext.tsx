@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Employee, UserRole, AccountStatus } from '../types';
 import { initialEmployees } from '../data/mockSeed';
+import { apiClient } from '../lib/api';
 
 interface AuthContextType {
   currentUser: Employee | null;
@@ -15,10 +16,10 @@ interface AuthContextType {
   quickSwitchUser: (user: Employee) => void;
   
   // RBAC Actions (Hierarchical)
-  approveUser: (userId: string, role: UserRole, managedDeptIds?: string[]) => void;
-  toggleUserBlock: (userId: string) => void;
-  updateGranularPermissions: (userId: string, perms: { can_create_pop?: boolean; can_edit_pop?: boolean }) => void;
-  assignAdminSectors: (adminId: string, deptIds: string[]) => void;
+  approveUser: (userId: string, role: UserRole, managedDeptIds?: string[]) => Promise<void>;
+  toggleUserBlock: (userId: string) => Promise<void>;
+  updateGranularPermissions: (userId: string, perms: { can_create_pop?: boolean; can_edit_pop?: boolean }) => Promise<void>;
+  assignAdminSectors: (adminId: string, deptIds: string[]) => Promise<void>;
   
   // RBAC Permission Checkers
   isSuperAdmin: () => boolean;
@@ -35,148 +36,161 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Load users from localStorage or initialSeed
+  // Real users list from MySQL backend
   const [allUsersList, setAllUsersList] = useState<Employee[]>(() => {
     try {
       const saved = localStorage.getItem('popcontrol_all_users');
-      if (saved) {
-        return JSON.parse(saved);
-      }
+      if (saved) return JSON.parse(saved);
     } catch (e) {
-      console.warn('Erro ao carregar usuários locais:', e);
+      console.warn('Erro ao carregar cache de usuários:', e);
     }
     return initialEmployees;
   });
 
-  // Current logged in user
+  // Current logged in user (starts null unless valid session exists)
   const [currentUser, setCurrentUser] = useState<Employee | null>(() => {
     try {
-      const savedId = localStorage.getItem('popcontrol_active_user_id');
-      if (savedId) {
-        const found = allUsersList.find(e => e.id === savedId);
-        if (found && found.account_status !== 'BLOQUEADO') return found;
+      const savedUser = localStorage.getItem('popcontrol_current_user');
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        if (parsed && parsed.account_status === 'APROVADO') return parsed;
       }
     } catch (e) {
-      console.warn('Erro ao recuperar sessão ativa:', e);
+      console.warn('Erro ao carregar sessão em cache:', e);
     }
-    // Default to Super Admin so application starts ready to test
-    return allUsersList[0] || null;
+    return null;
   });
 
-  // Persist users to localStorage whenever they change
-  useEffect(() => {
+  // Sync users list from real MySQL database
+  const refreshUsersFromBackend = async () => {
     try {
-      localStorage.setItem('popcontrol_all_users', JSON.stringify(allUsersList));
+      const dbUsers = await apiClient.getEmployees();
+      if (Array.isArray(dbUsers) && dbUsers.length > 0) {
+        setAllUsersList(dbUsers);
+        localStorage.setItem('popcontrol_all_users', JSON.stringify(dbUsers));
+      }
     } catch (e) {
-      console.warn('Erro ao salvar usuários locais:', e);
+      console.warn('Não foi possível sincronizar usuários do MySQL (modo offline):', e);
     }
-  }, [allUsersList]);
+  };
 
-  // Keep currentUser synced if their permissions/status change in allUsersList
+  // Restore authenticated session on mount from real token
+  useEffect(() => {
+    refreshUsersFromBackend();
+
+    const token = localStorage.getItem('popcontrol_token');
+    if (token) {
+      apiClient.getMe(token)
+        .then(res => {
+          if (res.user && res.user.account_status === 'APROVADO') {
+            setCurrentUser(res.user);
+            localStorage.setItem('popcontrol_current_user', JSON.stringify(res.user));
+          } else {
+            setCurrentUser(null);
+            localStorage.removeItem('popcontrol_token');
+            localStorage.removeItem('popcontrol_current_user');
+          }
+        })
+        .catch(() => {
+          // If token expired or invalid, clear session
+          setCurrentUser(null);
+          localStorage.removeItem('popcontrol_token');
+          localStorage.removeItem('popcontrol_current_user');
+        });
+    }
+  }, []);
+
+  // Save current user to cache
   useEffect(() => {
     if (currentUser) {
-      const fresh = allUsersList.find(u => u.id === currentUser.id);
-      if (fresh && JSON.stringify(fresh) !== JSON.stringify(currentUser)) {
-        setCurrentUser(fresh);
-      }
+      localStorage.setItem('popcontrol_current_user', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('popcontrol_current_user');
     }
-  }, [allUsersList]);
+  }, [currentUser]);
 
   const userRole: UserRole = currentUser?.role || 'USUARIO';
   const isAuthenticated = Boolean(currentUser && currentUser.account_status === 'APROVADO');
 
   // -------------------------------------------------------------
-  // 1. LOGIN & AUTENTICAÇÃO
+  // 1. LOGIN & AUTENTICAÇÃO REAL (MySQL)
   // -------------------------------------------------------------
   const login = async (identifier: string, password?: string): Promise<{ success: boolean; message?: string }> => {
-    const cleanId = identifier.trim().toLowerCase();
-    
-    // Buscar por e-mail, CPF limpo ou matrícula
-    const user = allUsersList.find(u => 
-      u.email.toLowerCase() === cleanId || 
-      u.cpf.replace(/\D/g, '') === cleanId.replace(/\D/g, '') ||
-      u.registration_number.toLowerCase() === cleanId
-    );
+    try {
+      const res = await apiClient.login(identifier, password);
+      if (res.success && res.user) {
+        localStorage.setItem('popcontrol_token', res.token);
+        localStorage.setItem('popcontrol_active_user_id', res.user.id);
+        setCurrentUser(res.user);
+        await refreshUsersFromBackend();
+        return { success: true };
+      }
+      return { success: false, message: res.message || 'Credenciais inválidas.' };
+    } catch (err: any) {
+      // Fallback local caso servidor esteja offline durante desenvolvimento
+      console.warn('[AUTH] Falha na chamada da API de login, tentando validação local:', err.message);
+      const cleanId = identifier.trim().toLowerCase();
+      const user = allUsersList.find(u => 
+        u.email.toLowerCase() === cleanId || 
+        u.cpf.replace(/\D/g, '') === cleanId.replace(/\D/g, '') ||
+        u.registration_number.toLowerCase() === cleanId
+      );
 
-    if (!user) {
-      return { success: false, message: 'Usuário não localizado. Verifique e-mail, CPF ou matrícula.' };
+      if (!user) {
+        return { success: false, message: err.message || 'Usuário não localizado no sistema.' };
+      }
+      if (user.account_status === 'PENDENTE') {
+        return { success: false, message: 'Seu cadastro está pendente de aprovação pelo Super Administrador.' };
+      }
+      if (user.account_status === 'BLOQUEADO') {
+        return { success: false, message: 'Acesso bloqueado pela administração.' };
+      }
+      if (password && user.password && user.password !== password) {
+        return { success: false, message: 'Senha incorreta. Tente novamente.' };
+      }
+
+      setCurrentUser(user);
+      return { success: true };
     }
-
-    // Validação de Status Hierárquico
-    if (user.account_status === 'PENDENTE') {
-      return {
-        success: false,
-        message: 'Seu cadastro está pendente de aprovação pelo Super Administrador. Aguarde a liberação do acesso.'
-      };
-    }
-
-    if (user.account_status === 'BLOQUEADO') {
-      return {
-        success: false,
-        message: 'Acesso bloqueado pelo gestor do setor. Entre em contato com a administração.'
-      };
-    }
-
-    // Validação de senha simples (se informada)
-    if (password && user.password && user.password !== password) {
-      return { success: false, message: 'Senha incorreta. Tente novamente.' };
-    }
-
-    setCurrentUser(user);
-    localStorage.setItem('popcontrol_active_user_id', user.id);
-    return { success: true };
   };
 
   const logout = () => {
     setCurrentUser(null);
+    localStorage.removeItem('popcontrol_token');
+    localStorage.removeItem('popcontrol_current_user');
     localStorage.removeItem('popcontrol_active_user_id');
   };
 
   const quickSwitchUser = (user: Employee) => {
     setCurrentUser(user);
+    localStorage.setItem('popcontrol_current_user', JSON.stringify(user));
     localStorage.setItem('popcontrol_active_user_id', user.id);
   };
 
   // -------------------------------------------------------------
-  // 2. CADASTRO DE NOVAS CONTAS (Entra como PENDENTE)
+  // 2. CADASTRO DE NOVAS CONTAS (MySQL Backed)
   // -------------------------------------------------------------
   const register = async (userData: Partial<Employee>): Promise<{ success: boolean; message: string }> => {
-    const newId = `emp-${Date.now()}`;
-    const newUser: Employee = {
-      id: newId,
-      company_id: userData.company_id || 'c1111111-1111-1111-1111-111111111111',
-      department_id: userData.department_id || 'd1111111-1111-1111-1111-111111111111',
-      position_id: userData.position_id || 'p1111111-1111-1111-1111-111111111111',
-      full_name: userData.full_name || 'Novo Colaborador',
-      cpf: userData.cpf || '',
-      registration_number: userData.registration_number || `MAT-${Math.floor(1000 + Math.random() * 9000)}`,
-      email: userData.email || '',
-      phone: userData.phone || '',
-      password: userData.password || '123',
-      role: 'USUARIO', // Sempre inicia como USUARIO
-      account_status: 'PENDENTE', // Obrigatório passar pela aprovação do Super Admin
-      can_create_pop: false, // Padrão: Apenas leitura
-      can_edit_pop: false,   // Padrão: Apenas leitura
-      admission_date: new Date().toISOString().split('T')[0],
-      status: 'active',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      ...userData
-    };
-
-    setAllUsersList(prev => [newUser, ...prev]);
-
-    return {
-      success: true,
-      message: 'Solicitação de cadastro registrada com sucesso! Ela foi encaminhada para aprovação do Super Administrador.'
-    };
+    try {
+      const res = await apiClient.register(userData);
+      await refreshUsersFromBackend();
+      return {
+        success: true,
+        message: res.message || 'Solicitação de cadastro registrada com sucesso! Aguarde a homologação do Super Administrador.'
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message || 'Erro ao submeter solicitação de cadastro.'
+      };
+    }
   };
 
   // -------------------------------------------------------------
   // 3. AÇÕES DO SUPER ADMIN (Administrador Global)
   // -------------------------------------------------------------
-  // Aprova cadastro e define nível de acesso inicial
-  const approveUser = (userId: string, targetRole: UserRole, managedDeptIds?: string[]) => {
+  const approveUser = async (userId: string, targetRole: UserRole, managedDeptIds?: string[]) => {
+    // Otimista
     setAllUsersList(prev => prev.map(u => {
       if (u.id === userId) {
         return {
@@ -189,10 +203,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return u;
     }));
+
+    try {
+      await apiClient.approveUser(userId, targetRole, managedDeptIds);
+      await refreshUsersFromBackend();
+    } catch (err) {
+      console.error('Erro ao aprovar usuário no banco:', err);
+    }
   };
 
-  // Atribui e vincula os ADMINs aos seus respectivos setores de responsabilidade
-  const assignAdminSectors = (adminId: string, deptIds: string[]) => {
+  const assignAdminSectors = async (adminId: string, deptIds: string[]) => {
     setAllUsersList(prev => prev.map(u => {
       if (u.id === adminId) {
         return {
@@ -204,16 +224,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return u;
     }));
+
+    try {
+      await apiClient.assignAdminSectors(adminId, deptIds);
+      await refreshUsersFromBackend();
+    } catch (err) {
+      console.error('Erro ao vincular setores no banco:', err);
+    }
   };
 
   // -------------------------------------------------------------
   // 4. AÇÕES DO ADMIN (Gestor de Setor) E SUPER ADMIN
   // -------------------------------------------------------------
-  // Liberar ou bloquear acesso de colaboradores do setor
-  const toggleUserBlock = (userId: string) => {
+  const toggleUserBlock = async (userId: string) => {
+    const target = allUsersList.find(u => u.id === userId);
+    const newStatus: AccountStatus = target?.account_status === 'BLOQUEADO' ? 'APROVADO' : 'BLOQUEADO';
+
     setAllUsersList(prev => prev.map(u => {
       if (u.id === userId) {
-        const newStatus: AccountStatus = u.account_status === 'BLOQUEADO' ? 'APROVADO' : 'BLOQUEADO';
         return {
           ...u,
           account_status: newStatus,
@@ -222,21 +250,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return u;
     }));
+
+    try {
+      await apiClient.toggleUserBlock(userId, newStatus);
+      await refreshUsersFromBackend();
+    } catch (err) {
+      console.error('Erro ao alternar bloqueio de usuário no banco:', err);
+    }
   };
 
-  // Conceder permissões granulares aos usuários do setor
-  const updateGranularPermissions = (userId: string, perms: { can_create_pop?: boolean; can_edit_pop?: boolean }) => {
+  const updateGranularPermissions = async (userId: string, perms: { can_create_pop?: boolean; can_edit_pop?: boolean }) => {
+    const target = allUsersList.find(u => u.id === userId);
+    const canCreate = perms.can_create_pop !== undefined ? perms.can_create_pop : Boolean(target?.can_create_pop);
+    const canEdit = perms.can_edit_pop !== undefined ? perms.can_edit_pop : Boolean(target?.can_edit_pop);
+
     setAllUsersList(prev => prev.map(u => {
       if (u.id === userId) {
         return {
           ...u,
-          can_create_pop: perms.can_create_pop !== undefined ? perms.can_create_pop : u.can_create_pop,
-          can_edit_pop: perms.can_edit_pop !== undefined ? perms.can_edit_pop : u.can_edit_pop,
+          can_create_pop: canCreate,
+          can_edit_pop: canEdit,
           updated_at: new Date().toISOString()
         };
       }
       return u;
     }));
+
+    try {
+      await apiClient.updatePermissions(userId, canCreate, canEdit);
+      await refreshUsersFromBackend();
+    } catch (err) {
+      console.error('Erro ao atualizar permissões no banco:', err);
+    }
   };
 
   // -------------------------------------------------------------

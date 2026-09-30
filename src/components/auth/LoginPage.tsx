@@ -324,68 +324,86 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess }) => {
 
           {/* Quick RBAC Switcher Footer */}
           <div className="pt-4 border-t border-slate-800 space-y-3">
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>Acesso Rápido para Demonstração dos 3 Níveis (RBAC):</span>
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2 font-bold text-slate-400">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>Credenciais Reais de Teste (MySQL CloudPanel):</span>
+              </div>
+              <span className="text-[10px] text-slate-500 font-mono">Senha padrão: 123</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               {/* 1. Super Admin */}
-              {superAdminUser && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    quickSwitchUser(superAdminUser);
-                    onSuccess?.();
-                  }}
-                  className="p-3 bg-purple-950/30 hover:bg-purple-900/50 border border-purple-500/40 rounded-xl text-left transition-all group"
-                >
-                  <div className="flex items-center gap-1.5 text-purple-400 font-black text-xs mb-1">
-                    <Crown className="w-3.5 h-3.5" />
-                    <span>SUPER ADMIN</span>
-                  </div>
-                  <div className="font-bold text-white text-xs truncate">Carlos Eduardo</div>
-                  <div className="text-[10px] text-purple-300/80 mt-0.5">Controle Total do Sistema</div>
-                </button>
-              )}
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={async () => {
+                  setIdentifier('carlos.admin@rufato.com.br');
+                  setPassword('123');
+                  setIsSubmitting(true);
+                  setLoginError(null);
+                  const res = await login('carlos.admin@rufato.com.br', '123');
+                  setIsSubmitting(false);
+                  if (res.success) onSuccess?.();
+                  else setLoginError(res.message || 'Erro');
+                }}
+                className="p-3 bg-purple-950/30 hover:bg-purple-900/50 border border-purple-500/40 rounded-xl text-left transition-all group disabled:opacity-50"
+              >
+                <div className="flex items-center gap-1.5 text-purple-400 font-black text-xs mb-1">
+                  <Crown className="w-3.5 h-3.5" />
+                  <span>SUPER ADMIN</span>
+                </div>
+                <div className="font-bold text-white text-xs truncate">Carlos Eduardo</div>
+                <div className="text-[10px] text-purple-300/80 mt-0.5 truncate">carlos.admin@rufato.com.br</div>
+              </button>
 
               {/* 2. Admin (Gestor de Setor) */}
-              {sectorAdminUser && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    quickSwitchUser(sectorAdminUser);
-                    onSuccess?.();
-                  }}
-                  className="p-3 bg-blue-950/30 hover:bg-blue-900/50 border border-blue-500/40 rounded-xl text-left transition-all group"
-                >
-                  <div className="flex items-center gap-1.5 text-blue-400 font-black text-xs mb-1">
-                    <Briefcase className="w-3.5 h-3.5" />
-                    <span>ADMIN SETOR</span>
-                  </div>
-                  <div className="font-bold text-white text-xs truncate">Mariana Souza</div>
-                  <div className="text-[10px] text-blue-300/80 mt-0.5">Gestora de Produção</div>
-                </button>
-              )}
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={async () => {
+                  setIdentifier('mariana.producao@rufato.com.br');
+                  setPassword('123');
+                  setIsSubmitting(true);
+                  setLoginError(null);
+                  const res = await login('mariana.producao@rufato.com.br', '123');
+                  setIsSubmitting(false);
+                  if (res.success) onSuccess?.();
+                  else setLoginError(res.message || 'Erro');
+                }}
+                className="p-3 bg-blue-950/30 hover:bg-blue-900/50 border border-blue-500/40 rounded-xl text-left transition-all group disabled:opacity-50"
+              >
+                <div className="flex items-center gap-1.5 text-blue-400 font-black text-xs mb-1">
+                  <Briefcase className="w-3.5 h-3.5" />
+                  <span>ADMIN SETOR</span>
+                </div>
+                <div className="font-bold text-white text-xs truncate">Mariana Souza</div>
+                <div className="text-[10px] text-blue-300/80 mt-0.5 truncate">mariana.producao@rufato.com.br</div>
+              </button>
 
               {/* 3. Usuário Padrão */}
-              {standardUser && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    quickSwitchUser(standardUser);
-                    onSuccess?.();
-                  }}
-                  className="p-3 bg-slate-800/40 hover:bg-slate-800 border border-slate-700 rounded-xl text-left transition-all group"
-                >
-                  <div className="flex items-center gap-1.5 text-slate-400 font-black text-xs mb-1">
-                    <User className="w-3.5 h-3.5" />
-                    <span>USUÁRIO</span>
-                  </div>
-                  <div className="font-bold text-white text-xs truncate">Roberto Alves</div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">Apenas Leitura (Padrão)</div>
-                </button>
-              )}
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={async () => {
+                  setIdentifier('roberto.operador@rufato.com.br');
+                  setPassword('123');
+                  setIsSubmitting(true);
+                  setLoginError(null);
+                  const res = await login('roberto.operador@rufato.com.br', '123');
+                  setIsSubmitting(false);
+                  if (res.success) onSuccess?.();
+                  else setLoginError(res.message || 'Erro');
+                }}
+                className="p-3 bg-slate-800/40 hover:bg-slate-800 border border-slate-700 rounded-xl text-left transition-all group disabled:opacity-50"
+              >
+                <div className="flex items-center gap-1.5 text-slate-400 font-black text-xs mb-1">
+                  <User className="w-3.5 h-3.5" />
+                  <span>USUÁRIO</span>
+                </div>
+                <div className="font-bold text-white text-xs truncate">Roberto Alves</div>
+                <div className="text-[10px] text-slate-400 mt-0.5 truncate">roberto.operador@rufato.com.br</div>
+              </button>
             </div>
           </div>
         </div>

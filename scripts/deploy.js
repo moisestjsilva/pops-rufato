@@ -33,17 +33,29 @@ async function main() {
   // 1. Compilar Frontend
   run('npm run build', '1/3 Compilando frontend React + Tailwind');
 
-  // 2. Enviar e Descompactar via stream direto (1 única conexão SSH)
-  console.log('\n⏳ 2/3 Enviando arquivos e atualizando CloudPanel em conexão direta...');
-  const remoteActions = `tar -xzf - -C ${REMOTE_DIR} && fuser -k 3031/tcp || true; nohup ${NODE_BIN} ${REMOTE_DIR}/server.js > ${REMOTE_DIR}/app.log 2>&1 & sleep 2; cat ${REMOTE_DIR}/app.log`;
-  const streamCmd = `tar -czf - dist server.js package.json | ssh -i "${SSH_KEY_PATH}" -o BatchMode=yes -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} "${remoteActions}"`;
+  // 2. Criar pacote zip e enviar via SCP/SSH
+  console.log('\n⏳ 2/3 Empacotando e enviando arquivos para o CloudPanel...');
+  const zipPath = path.join(process.cwd(), 'deploy-cloudpanel.zip');
   
   try {
-    execSync(streamCmd, { stdio: 'inherit' });
-    console.log('✅ Arquivos sincronizados e servidor reiniciado!');
+    // Cria arquivo zip no Windows usando PowerShell
+    execSync(`powershell -Command "Compress-Archive -Path dist,server.js,package.json -DestinationPath '${zipPath}' -Force"`, { stdio: 'inherit' });
+    
+    // Envia arquivo via SCP
+    execSync(`scp -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=no "${zipPath}" ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/`, { stdio: 'inherit' });
+    
+    // Descompacta e reinicia o serviço Node
+    const restartCmd = `ssh -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} "cd ${REMOTE_DIR} && unzip -o deploy-cloudpanel.zip && fuser -k 3031/tcp || true; sleep 2; nohup ${NODE_BIN} server.js > app.log 2>&1 & sleep 2; cat app.log"`;
+    execSync(restartCmd, { stdio: 'inherit' });
+    
+    console.log('✅ Arquivos descompactados e servidor reiniciado com sucesso!');
   } catch (err) {
-    console.warn('\n⚠️ Conexão direta SSH temporariamente indisponível.');
+    console.warn('\n⚠️ Falha na transferência direta SSH/SCP: ' + err.message);
     console.warn('💡 Você pode usar: "git push origin main" para deploy automático pelo GitHub Actions.');
+  } finally {
+    if (fs.existsSync(zipPath)) {
+      try { fs.unlinkSync(zipPath); } catch (e) {}
+    }
   }
 
   // 3. Testar saúde da aplicação

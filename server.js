@@ -322,6 +322,245 @@ app.delete('/api/employees/:id', async (req, res) => {
   }
 });
 
+// -------------------------------------------------------------
+// AUTENTICAÇÃO REAL (MySQL Backed)
+// -------------------------------------------------------------
+function generateAuthToken(user) {
+  const payload = {
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    time: Date.now()
+  };
+  return Buffer.from(JSON.stringify(payload)).toString('base64');
+}
+
+function verifyAuthToken(token) {
+  try {
+    const json = Buffer.from(token, 'base64').toString('utf-8');
+    const data = JSON.parse(json);
+    if (!data.id) return null;
+    return data;
+  } catch (e) {
+    return null;
+  }
+}
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { identifier, password } = req.body;
+    if (!identifier) {
+      return res.status(400).json({ success: false, message: 'Informe seu e-mail, CPF ou matrícula.' });
+    }
+
+    const cleanId = String(identifier).trim().toLowerCase();
+    const cleanCpfDigits = String(identifier).replace(/\D/g, '');
+
+    const [rows] = await pool.query(
+      `SELECT e.*, c.trade_name as company_name, d.name as department_name, p.title as position_title 
+       FROM employees e 
+       LEFT JOIN companies c ON e.company_id = c.id 
+       LEFT JOIN departments d ON e.department_id = d.id 
+       LEFT JOIN positions p ON e.position_id = p.id 
+       WHERE LOWER(TRIM(e.email)) = ? 
+          OR (? != '' AND REPLACE(REPLACE(REPLACE(e.cpf, '.', ''), '-', ''), ' ', '') = ?)
+          OR LOWER(TRIM(e.registration_number)) = ?
+       LIMIT 1`,
+      [cleanId, cleanCpfDigits, cleanCpfDigits, cleanId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Usuário não localizado no sistema. Verifique o e-mail, CPF ou matrícula digitados.' 
+      });
+    }
+
+    const user = rows[0];
+
+    // Checagem de Senha
+    if (user.password) {
+      if (!password || password !== user.password) {
+        return res.status(401).json({ success: false, message: 'Senha incorreta. Tente novamente.' });
+      }
+    }
+
+    // Checagem de Status da Conta (RBAC 3 níveis)
+    if (user.account_status === 'PENDENTE') {
+      return res.status(403).json({
+        success: false,
+        message: 'Seu cadastro está pendente de aprovação pelo Super Administrador. Aguarde a liberação do seu acesso.'
+      });
+    }
+
+    if (user.account_status === 'BLOQUEADO') {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso bloqueado pela administração do setor. Entre em contato com seu gestor.'
+      });
+    }
+
+    const formattedUser = {
+      ...user,
+      can_create_pop: Boolean(user.can_create_pop),
+      can_edit_pop: Boolean(user.can_edit_pop),
+      managed_department_ids: user.managed_department_ids ? JSON.parse(user.managed_department_ids) : []
+    };
+    delete formattedUser.password;
+
+    const token = generateAuthToken(user);
+
+    try {
+      await pool.query(
+        'INSERT INTO audit_logs (id, user_id, action, entity_name, entity_id, details, ip_address) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [`aud-${Date.now()}`, user.id, 'LOGIN', 'auth', user.id, `Login efetuado com sucesso por ${user.full_name} (${user.role})`, req.ip || null]
+      );
+    } catch (e) {}
+
+    return res.json({
+      success: true,
+      token,
+      user: formattedUser
+    });
+  } catch (err) {
+    console.error('Erro no login:', err);
+    return res.status(500).json({ success: false, message: 'Erro interno ao realizar autenticação: ' + err.message });
+  }
+});
+
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { full_name, cpf, registration_number, email, phone, password, department_id, company_id, position_id } = req.body;
+
+    if (!full_name || !cpf || !email || !registration_number) {
+      return res.status(400).json({ success: false, message: 'Preencha todos os campos obrigatórios (Nome, CPF, Matrícula, E-mail).' });
+    }
+
+    const cleanCpfDigits = String(cpf).replace(/\D/g, '');
+    const cleanEmail = String(email).trim().toLowerCase();
+    const cleanReg = String(registration_number).trim();
+
+    const [existing] = await pool.query(
+      `SELECT id FROM employees 
+       WHERE LOWER(TRIM(email)) = ? 
+          OR REPLACE(REPLACE(REPLACE(cpf, '.', ''), '-', ''), ' ', '') = ?
+          OR LOWER(TRIM(registration_number)) = ?
+       LIMIT 1`,
+      [cleanEmail, cleanCpfDigits, cleanReg.toLowerCase()]
+    );
+
+    if (existing.length > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Já existe um colaborador cadastrado com este e-mail, CPF ou matrícula.' 
+      });
+    }
+
+    let compId = company_id;
+    let deptId = department_id;
+    let posId = position_id;
+
+    if (!compId) {
+      const [comps] = await pool.query('SELECT id FROM companies LIMIT 1');
+      compId = comps[0]?.id || 'comp-1';
+    }
+    if (!deptId) {
+      const [depts] = await pool.query('SELECT id FROM departments WHERE company_id = ? LIMIT 1', [compId]);
+      deptId = depts[0]?.id || 'dept-1';
+    }
+    if (!posId) {
+      const [pos] = await pool.query('SELECT id FROM positions WHERE department_id = ? LIMIT 1', [deptId]);
+      posId = pos[0]?.id || 'pos-1';
+    }
+
+    const newEmpId = `emp-${Date.now()}`;
+    const userPass = password || '123';
+
+    await pool.query(
+      `INSERT INTO employees 
+        (id, user_id, company_id, department_id, position_id, full_name, cpf, registration_number, email, phone, role, account_status, managed_department_ids, can_create_pop, can_edit_pop, password, admission_date, status) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'USUARIO', 'PENDENTE', NULL, 0, 0, ?, CURDATE(), 'active')`,
+      [
+        newEmpId,
+        `usr-${Date.now()}`,
+        compId,
+        deptId,
+        posId,
+        full_name.trim(),
+        cpf.trim(),
+        cleanReg,
+        cleanEmail,
+        phone || null,
+        userPass
+      ]
+    );
+
+    try {
+      await pool.query(
+        'INSERT INTO audit_logs (id, user_id, action, entity_name, entity_id, details, ip_address) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [`aud-${Date.now()}`, newEmpId, 'SOLICITACAO_CADASTRO', 'employees', newEmpId, `Nova solicitação de acesso para ${full_name} (${cleanEmail}) aguardando aprovação`, req.ip || null]
+      );
+    } catch (e) {}
+
+    return res.status(201).json({
+      success: true,
+      message: 'Solicitação de cadastro registrada com sucesso! Seu acesso está aguardando homologação do Super Administrador.'
+    });
+  } catch (err) {
+    console.error('Erro no cadastro:', err);
+    return res.status(500).json({ success: false, message: 'Erro interno ao processar cadastro: ' + err.message });
+  }
+});
+
+app.get('/api/auth/me', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ success: false, message: 'Token não fornecido.' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = verifyAuthToken(token);
+    if (!decoded || !decoded.id) {
+      return res.status(401).json({ success: false, message: 'Token inválido ou expirado.' });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT e.*, c.trade_name as company_name, d.name as department_name, p.title as position_title 
+       FROM employees e 
+       LEFT JOIN companies c ON e.company_id = c.id 
+       LEFT JOIN departments d ON e.department_id = d.id 
+       LEFT JOIN positions p ON e.position_id = p.id 
+       WHERE e.id = ? 
+       LIMIT 1`,
+      [decoded.id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(401).json({ success: false, message: 'Usuário não encontrado.' });
+    }
+
+    const user = rows[0];
+
+    if (user.account_status === 'BLOQUEADO') {
+      return res.status(403).json({ success: false, message: 'Acesso bloqueado.' });
+    }
+
+    const formattedUser = {
+      ...user,
+      can_create_pop: Boolean(user.can_create_pop),
+      can_edit_pop: Boolean(user.can_edit_pop),
+      managed_department_ids: user.managed_department_ids ? JSON.parse(user.managed_department_ids) : []
+    };
+    delete formattedUser.password;
+
+    return res.json({ success: true, user: formattedUser });
+  } catch (err) {
+    console.error('Erro no /api/auth/me:', err);
+    return res.status(500).json({ success: false, message: 'Erro interno na validação de sessão.' });
+  }
+});
+
 // ENDPOINTS ESPECÍFICOS DE RBAC
 app.post('/api/auth/approve', async (req, res) => {
   try {
@@ -641,10 +880,128 @@ async function ensureRBACSchema() {
       try {
         await pool.query(q);
       } catch (e) {
-        // Fallback para versões mais antigas do MySQL que não suportam IF NOT EXISTS na coluna
+        // Fallback para versões mais antigas do MySQL
       }
     }
-    console.log('[POP CONTROL] Validação de tabelas RBAC concluída com sucesso.');
+
+    // Garante que todas as contas existentes tenham senha padrão '123' caso nula
+    try {
+      await pool.query("UPDATE employees SET password = '123' WHERE password IS NULL OR password = ''");
+      await pool.query("UPDATE employees SET account_status = 'APROVADO' WHERE account_status IS NULL");
+    } catch (e) {}
+
+    // Seed dos usuários padrão para demonstração real do RBAC no MySQL
+    const seedUsers = [
+      {
+        id: 'emp-carlos-superadmin',
+        full_name: 'Carlos Eduardo (Super Admin)',
+        email: 'carlos.admin@rufato.com.br',
+        cpf: '111.222.333-44',
+        registration_number: '00101',
+        role: 'SUPER_ADMIN',
+        account_status: 'APROVADO',
+        password: '123',
+        department_id: 'dept-6',
+        can_create_pop: 1,
+        can_edit_pop: 1
+      },
+      {
+        id: 'emp-moises-admin',
+        full_name: 'Moisés Silva (Super Admin)',
+        email: 'moises.silva@rufato.com.br',
+        cpf: '054.892.116-32',
+        registration_number: 'RUF-0145',
+        role: 'SUPER_ADMIN',
+        account_status: 'APROVADO',
+        password: '123',
+        department_id: 'dept-5',
+        can_create_pop: 1,
+        can_edit_pop: 1
+      },
+      {
+        id: 'emp-mariana-admin',
+        full_name: 'Mariana Souza (Admin de Setor)',
+        email: 'mariana.producao@rufato.com.br',
+        cpf: '222.333.444-55',
+        registration_number: '00204',
+        role: 'ADMIN',
+        account_status: 'APROVADO',
+        password: '123',
+        department_id: 'dept-1',
+        managed_department_ids: JSON.stringify(['dept-1', 'dept-2']),
+        can_create_pop: 1,
+        can_edit_pop: 1
+      },
+      {
+        id: 'emp-marcos-admin',
+        full_name: 'Marcos Oliveira (Admin de Setor)',
+        email: 'marcos.expedicao@rufato.com.br',
+        cpf: '333.444.555-66',
+        registration_number: '00310',
+        role: 'ADMIN',
+        account_status: 'APROVADO',
+        password: '123',
+        department_id: 'dept-4',
+        managed_department_ids: JSON.stringify(['dept-4']),
+        can_create_pop: 1,
+        can_edit_pop: 1
+      },
+      {
+        id: 'emp-roberto-user',
+        full_name: 'Roberto Alves (Operador Padrão)',
+        email: 'roberto.operador@rufato.com.br',
+        cpf: '444.555.666-77',
+        registration_number: '00412',
+        role: 'USUARIO',
+        account_status: 'APROVADO',
+        password: '123',
+        department_id: 'dept-1',
+        can_create_pop: 0,
+        can_edit_pop: 0
+      },
+      {
+        id: 'emp-aline-pendente',
+        full_name: 'Aline Costa (Cadastro Pendente)',
+        email: 'aline.costa@rufato.com.br',
+        cpf: '555.666.777-88',
+        registration_number: '00530',
+        role: 'USUARIO',
+        account_status: 'PENDENTE',
+        password: '123',
+        department_id: 'dept-3',
+        can_create_pop: 0,
+        can_edit_pop: 0
+      }
+    ];
+
+    for (const u of seedUsers) {
+      const [existing] = await pool.query('SELECT id FROM employees WHERE LOWER(email) = ?', [u.email.toLowerCase()]);
+      if (existing.length === 0) {
+        await pool.query(
+          `INSERT INTO employees 
+            (id, company_id, department_id, position_id, full_name, cpf, registration_number, email, role, account_status, managed_department_ids, can_create_pop, can_edit_pop, password, admission_date, status)
+           VALUES (?, 'comp-1', ?, 'pos-1', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURDATE(), 'active')`,
+          [
+            u.id, u.department_id, u.full_name, u.cpf, u.registration_number, u.email,
+            u.role, u.account_status, u.managed_department_ids || null,
+            u.can_create_pop || 0, u.can_edit_pop || 0, u.password
+          ]
+        );
+      } else {
+        // Atualiza campos de RBAC e senha caso o usuário já existisse
+        await pool.query(
+          `UPDATE employees SET 
+             role = ?, 
+             account_status = ?, 
+             password = COALESCE(password, '123'),
+             managed_department_ids = COALESCE(managed_department_ids, ?)
+           WHERE id = ?`,
+          [u.role, u.account_status, u.managed_department_ids || null, existing[0].id]
+        );
+      }
+    }
+
+    console.log('[POP CONTROL] Validação e sincronização de usuários RBAC concluída com sucesso.');
   } catch (err) {
     console.warn('[POP CONTROL] Checagem de tabelas RBAC:', err.message);
   }

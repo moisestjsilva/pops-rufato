@@ -8,10 +8,6 @@ SET FOREIGN_KEY_CHECKS = 0;
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 SET time_zone = "+00:00";
 
--- Selecionar o banco de dados pops
-CREATE DATABASE IF NOT EXISTS `pops` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE `pops`;
-
 -- --------------------------------------------------------
 -- 1. Tabela: companies (Empresas do Grupo Rufato)
 -- --------------------------------------------------------
@@ -83,12 +79,7 @@ CREATE TABLE `employees` (
   `registration_number` VARCHAR(50) NOT NULL UNIQUE,
   `email` VARCHAR(255) NOT NULL UNIQUE,
   `phone` VARCHAR(30) DEFAULT NULL,
-  `password` VARCHAR(255) DEFAULT '123',
-  `role` ENUM('SUPER_ADMIN', 'ADMIN', 'USUARIO', 'ADMINISTRADOR', 'GESTOR', 'RH', 'FUNCIONARIO') NOT NULL DEFAULT 'USUARIO',
-  `account_status` ENUM('PENDENTE', 'APROVADO', 'BLOQUEADO') NOT NULL DEFAULT 'APROVADO',
-  `managed_department_ids` TEXT DEFAULT NULL,
-  `can_create_pop` TINYINT(1) NOT NULL DEFAULT 0,
-  `can_edit_pop` TINYINT(1) NOT NULL DEFAULT 0,
+  `role` ENUM('ADMINISTRADOR', 'GESTOR', 'RH', 'FUNCIONARIO') NOT NULL DEFAULT 'FUNCIONARIO',
   `admission_date` DATE NOT NULL,
   `status` ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
