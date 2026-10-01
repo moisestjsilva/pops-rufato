@@ -1,7 +1,12 @@
 @import "tailwindcss";
 
 @media print {
-  /* Ocultar elementos de navegação, banners e botões durante a impressão */
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  /* Ocultar elementos de navegacao, barras laterais e botoes durante a impressao */
   header,
   aside,
   nav,
@@ -11,20 +16,32 @@
     display: none !important;
   }
 
-  body, html, #root, main, div {
+  html,
+  body,
+  #root,
+  #root > div,
+  div,
+  main,
+  section,
+  article {
     background: #ffffff !important;
     color: #000000 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    position: static !important;
+    display: block !important;
   }
 
-  body, html, #root, main {
+  body {
     margin: 0 !important;
     padding: 0 !important;
-    height: auto !important;
-    min-height: auto !important;
-    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
-  /* Ajustar o container formal do POP para impressão */
+  /* Ajustar o container formal do POP para impressao */
   [id^="pop-doc-print-"] {
     border: none !important;
     box-shadow: none !important;
@@ -33,12 +50,17 @@
     max-width: 100% !important;
     width: 100% !important;
     overflow: visible !important;
+    display: block !important;
   }
 
-  /* Evitar quebra no meio de etapas, tabelas ou blocos de aviso */
+  /* Evitar quebra indesejada no meio de secoes, tabelas e etapas */
   .break-inside-avoid,
+  .step-card,
+  tr,
+  img,
   [id^="pop-doc-print-"] > div {
-    break-inside: avoid;
-    page-break-inside: avoid;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 }
+

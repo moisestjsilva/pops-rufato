@@ -24,26 +24,25 @@ export async function generateElementPDF(elementId: string, filename: string): P
 
   try {
     const canvas = await html2canvas(element, {
-      scale: 2,
+      scale: 1.5,
       useCORS: true,
-      allowTaint: false,
+      allowTaint: true,
       logging: false,
       backgroundColor: '#ffffff',
       scrollX: 0,
       scrollY: 0,
-      height: element.scrollHeight,
-      windowHeight: element.scrollHeight,
-      windowWidth: document.documentElement.offsetWidth || 1280,
+      windowWidth: element.offsetWidth || 1200,
       onclone: (clonedDoc) => {
         const clonedEl = clonedDoc.getElementById(elementId);
         if (clonedEl) {
           clonedEl.style.overflow = 'visible';
           clonedEl.style.height = 'auto';
           clonedEl.style.maxHeight = 'none';
+          clonedEl.style.width = '100%';
         }
       },
       ignoreElements: (el) => {
-        return el.classList && el.classList.contains('no-print');
+        return Boolean(el.classList && el.classList.contains('no-print'));
       }
     });
 
@@ -52,7 +51,7 @@ export async function generateElementPDF(elementId: string, filename: string): P
     
     // Altura de uma página A4 em pixels no canvas master
     const canvasPageHeight = Math.floor(canvas.width * (a4HeightMm / a4WidthMm));
-    const totalPages = Math.ceil(canvas.height / canvasPageHeight);
+    const totalPages = Math.max(1, Math.ceil(canvas.height / canvasPageHeight));
     
     const pdf = new jsPDF('p', 'mm', 'a4');
 

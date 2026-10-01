@@ -163,20 +163,21 @@ export const POPViewer: React.FC<POPViewerProps> = ({
 
           <button
             onClick={() => window.print()}
-            className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-300 flex items-center gap-1.5"
-            title="Imprimir ou Salvar em PDF via Navegador"
+            className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 rounded-lg border border-slate-300 flex items-center gap-1.5 shadow-2xs transition-colors"
+            title="Imprimir documento formal completo"
           >
             <Printer className="w-3.5 h-3.5 text-slate-600" />
-            <span>Imprimir / Salvar PDF</span>
+            <span>Imprimir</span>
           </button>
 
           <button
             onClick={handleDownloadPDF}
             disabled={isGeneratingPDF}
-            className="px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 rounded-lg border border-blue-200 flex items-center gap-1.5"
+            className="px-3.5 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg shadow-xs flex items-center gap-1.5 transition-colors"
+            title="Baixar arquivo PDF com todas as páginas"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>{isGeneratingPDF ? 'Gerando...' : 'Baixar PDF'}</span>
+            <span>{isGeneratingPDF ? 'Gerando PDF...' : 'Baixar PDF'}</span>
           </button>
 
           {existingAck && (
