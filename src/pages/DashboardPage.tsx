@@ -145,25 +145,25 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   const pendingApprovalsPops = pops.filter(p => p.status === 'em_aprovacao');
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-5 pb-12">
       {/* Filters Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white px-5 py-4 rounded-xl border border-slate-200/80 shadow-2xs">
         <div>
-          <h2 className="font-extrabold text-slate-900 text-lg">
+          <h2 className="font-bold text-slate-900 text-base tracking-tight">
             Dashboard de Compliance Operacional
           </h2>
-          <p className="text-xs text-slate-500">
-            Visão consolidada de procedimentos, taxas de ciência e trilhas de auditoria
+          <p className="text-xs text-slate-500 mt-0.5">
+            Visão consolidada de procedimentos, conformidade e registros de auditoria
           </p>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2 text-xs">
-            <span className="font-semibold text-slate-600">Empresa:</span>
+            <span className="font-medium text-slate-500">Empresa:</span>
             <select
               value={selectedCompany}
               onChange={e => setSelectedCompany(e.target.value)}
-              className="p-2 rounded-lg border border-slate-300 bg-white font-medium text-slate-800"
+              className="h-9 px-3 rounded-lg border border-slate-200 bg-white font-normal text-slate-700 text-xs focus:outline-hidden focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-colors"
             >
               <option value="TODAS">Todas as Empresas</option>
               {companies.map(c => (
@@ -173,11 +173,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
           </div>
 
           <div className="flex items-center gap-2 text-xs">
-            <span className="font-semibold text-slate-600">Setor:</span>
+            <span className="font-medium text-slate-500">Setor:</span>
             <select
               value={selectedDept}
               onChange={e => setSelectedDept(e.target.value)}
-              className="p-2 rounded-lg border border-slate-300 bg-white font-medium text-slate-800"
+              className="h-9 px-3 rounded-lg border border-slate-200 bg-white font-normal text-slate-700 text-xs focus:outline-hidden focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-colors"
             >
               <option value="TODOS">Todos os Setores</option>
               {departments.map(d => (
@@ -191,33 +191,33 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* KPI 1 */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+        <div className="bg-white p-4.5 rounded-xl border border-slate-200/80 shadow-2xs space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Total de POPs</span>
-            <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
-              <FileText className="w-4 h-4" />
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total de POPs</span>
+            <div className="w-7 h-7 bg-slate-100 text-slate-600 rounded-lg flex items-center justify-center">
+              <FileText className="w-3.5 h-3.5" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-slate-900">{totalPOPs}</span>
-            <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md">
-              {publicadosCount} Publicados
+            <span className="text-2xl font-bold text-slate-900">{totalPOPs}</span>
+            <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-200/60">
+              {publicadosCount} Ativos
             </span>
           </div>
-          <p className="text-[11px] text-slate-500">{rascunhosCount} Rascunhos | {aprovacaoCount} Em Aprovação</p>
+          <p className="text-[11px] text-slate-500">{rascunhosCount} Rascunhos &bull; {aprovacaoCount} Em Aprovação</p>
         </div>
 
         {/* KPI 2 */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+        <div className="bg-white p-4.5 rounded-xl border border-slate-200/80 shadow-2xs space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Índice de Compliance</span>
-            <div className="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center">
-              <Award className="w-4 h-4" />
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Índice Compliance</span>
+            <div className="w-7 h-7 bg-slate-100 text-slate-600 rounded-lg flex items-center justify-center">
+              <Award className="w-3.5 h-3.5" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-slate-900">{overallComplianceRate}%</span>
-            <span className="text-xs font-bold text-emerald-600 flex items-center">
+            <span className="text-2xl font-bold text-slate-900">{overallComplianceRate}%</span>
+            <span className="text-xs font-medium text-emerald-700 flex items-center">
               <TrendingUp className="w-3.5 h-3.5 mr-0.5" /> Meta 95%
             </span>
           </div>
@@ -227,56 +227,56 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
         </div>
 
         {/* KPI 3 */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+        <div className="bg-white p-4.5 rounded-xl border border-slate-200/80 shadow-2xs space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Status de Revisão</span>
-            <div className="w-8 h-8 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center">
-              <Clock className="w-4 h-4" />
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Atenção / Revisão</span>
+            <div className="w-7 h-7 bg-slate-100 text-slate-600 rounded-lg flex items-center justify-center">
+              <Clock className="w-3.5 h-3.5" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-slate-900">{vencidosCount + proximosCount}</span>
+            <span className="text-2xl font-bold text-slate-900">{vencidosCount + proximosCount}</span>
             {vencidosCount > 0 && (
-              <span className="text-xs font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-md">
+              <span className="text-xs font-medium text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded-md border border-rose-200/60">
                 {vencidosCount} Vencidos
               </span>
             )}
           </div>
-          <p className="text-[11px] text-slate-500">{proximosCount} vencem em 30 dias | {emDiaCount} em dia</p>
+          <p className="text-[11px] text-slate-500">{proximosCount} vencem em 30d &bull; {emDiaCount} em dia</p>
         </div>
 
         {/* KPI 4 */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+        <div className="bg-white p-4.5 rounded-xl border border-slate-200/80 shadow-2xs space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Evidências de Ciência</span>
-            <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center">
-              <CheckCircle2 className="w-4 h-4" />
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Ciências Registradas</span>
+            <div className="w-7 h-7 bg-slate-100 text-slate-600 rounded-lg flex items-center justify-center">
+              <CheckCircle2 className="w-3.5 h-3.5" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-black text-slate-900">{acknowledgements.length}</span>
-            <span className="text-xs font-medium text-slate-500">Registros Auditáveis</span>
+            <span className="text-2xl font-bold text-slate-900">{acknowledgements.length}</span>
+            <span className="text-xs font-normal text-slate-500">Registros</span>
           </div>
           <p className="text-[11px] text-slate-500">{employees.length} Colaboradores Ativos</p>
         </div>
       </div>
 
       {/* Action Banners & Pending Tasks */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Pending Science for Active User */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+        <div className="bg-white p-4.5 rounded-xl border border-slate-200/80 shadow-2xs space-y-3">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-            <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-              <Clock className="w-4 h-4 text-amber-500" />
+            <h3 className="font-semibold text-slate-900 text-xs flex items-center gap-2">
+              <Clock className="w-4 h-4 text-slate-400" />
               Minhas Ciências Pendentes ({myPendingPops.length})
             </h3>
             <span className="text-[11px] text-slate-500">Perfil: {currentUser.full_name}</span>
           </div>
 
           {myPendingPops.length === 0 ? (
-            <div className="p-6 text-center text-slate-500 text-xs bg-emerald-50/50 rounded-xl border border-emerald-100">
-              <CheckCircle2 className="w-6 h-6 text-emerald-500 mx-auto mb-1" />
-              <p className="font-bold text-emerald-900">Parabéns! Você está 100% em dia com suas ciências de POPs.</p>
+            <div className="p-6 text-center text-slate-500 text-xs bg-slate-50 rounded-xl border border-slate-100">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 mx-auto mb-1" />
+              <p className="font-medium text-slate-800">Você está 100% em dia com suas ciências de POPs.</p>
             </div>
           ) : (
             <div className="space-y-2 text-xs">
@@ -284,13 +284,13 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                 <div
                   key={pop.id}
                   onClick={() => onNavigate(`/pops/${pop.id}`)}
-                  className="p-3 bg-amber-50/60 hover:bg-amber-100/80 rounded-xl border border-amber-200 flex items-center justify-between cursor-pointer transition-colors"
+                  className="p-3 bg-slate-50 hover:bg-slate-100/80 rounded-xl border border-slate-200/80 flex items-center justify-between cursor-pointer transition-colors"
                 >
                   <div>
-                    <span className="font-bold text-amber-950">{pop.code} - Versão {pop.current_version}</span>
-                    <p className="text-slate-700 font-medium line-clamp-1">{pop.title}</p>
+                    <span className="font-semibold text-slate-900">{pop.code} - Versão {pop.current_version}</span>
+                    <p className="text-slate-600 font-normal line-clamp-1">{pop.title}</p>
                   </div>
-                  <span className="px-2.5 py-1 text-[10px] font-bold text-amber-800 bg-amber-200 rounded-md shrink-0">
+                  <span className="px-2.5 py-1 text-[10px] font-medium text-slate-800 bg-white border border-slate-200 rounded-md shadow-2xs shrink-0">
                     Tomar Ciência &rarr;
                   </span>
                 </div>
@@ -300,15 +300,15 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
         </div>
 
         {/* Pending Approvals for Managers / Admin */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+        <div className="bg-white p-4.5 rounded-xl border border-slate-200/80 shadow-2xs space-y-3">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-            <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-              <CheckSquare className="w-4 h-4 text-blue-600" />
+            <h3 className="font-semibold text-slate-900 text-xs flex items-center gap-2">
+              <CheckSquare className="w-4 h-4 text-slate-400" />
               Aprovações Pendentes ({pendingApprovalsPops.length})
             </h3>
             <button
               onClick={() => onNavigate('/aprovacoes')}
-              className="text-xs font-semibold text-blue-600 hover:text-blue-800"
+              className="text-xs font-medium text-slate-600 hover:text-slate-900"
             >
               Ver Todas &rarr;
             </button>
@@ -324,14 +324,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                 <div
                   key={pop.id}
                   onClick={() => onNavigate(`/pops/${pop.id}`)}
-                  className="p-3 bg-blue-50/50 hover:bg-blue-100/60 rounded-xl border border-blue-200 flex items-center justify-between cursor-pointer transition-colors"
+                  className="p-3 bg-slate-50 hover:bg-slate-100/80 rounded-xl border border-slate-200/80 flex items-center justify-between cursor-pointer transition-colors"
                 >
                   <div>
-                    <span className="font-bold text-blue-950">{pop.code} - Versão {pop.current_version}</span>
-                    <p className="text-slate-700 font-medium line-clamp-1">{pop.title}</p>
+                    <span className="font-semibold text-slate-900">{pop.code} - Versão {pop.current_version}</span>
+                    <p className="text-slate-600 font-normal line-clamp-1">{pop.title}</p>
                     <span className="text-[10px] text-slate-500">Autor: {pop.author_name}</span>
                   </div>
-                  <span className="px-2.5 py-1 text-[10px] font-bold text-blue-700 bg-white border border-blue-300 rounded-md shrink-0">
+                  <span className="px-2.5 py-1 text-[10px] font-medium text-slate-800 bg-white border border-slate-200 rounded-md shadow-2xs shrink-0">
                     Avaliar &rarr;
                   </span>
                 </div>
@@ -342,12 +342,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
       </div>
 
       {/* Interactive Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Chart 1: Compliance por Setor */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs lg:col-span-2 space-y-4">
+        <div className="bg-white p-4.5 rounded-xl border border-slate-200/80 shadow-2xs lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-bold text-slate-900 text-sm">Taxa de Compliance de Ciência por Setor (%)</h3>
+              <h3 className="font-bold text-slate-900 text-xs">Taxa de Compliance de Ciência por Setor (%)</h3>
               <p className="text-xs text-slate-500">Percentual de colaboradores treinados e cientificados</p>
             </div>
           </div>
@@ -360,9 +360,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                 <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#64748B' }} />
                 <Tooltip 
                   formatter={(value: any) => [`${value}%`, 'Taxa de Compliance']}
-                  contentStyle={{ borderRadius: '12px', borderColor: '#CBD5E1', fontSize: '12px' }}
+                  contentStyle={{ borderRadius: '8px', borderColor: '#E2E8F0', fontSize: '12px' }}
                 />
-                <Bar dataKey="taxa" radius={[6, 6, 0, 0]}>
+                <Bar dataKey="taxa" radius={[4, 4, 0, 0]}>
                   {deptComplianceData.map((entry, index) => (
                     <Cell 
                       key={`cell-${index}`} 
@@ -376,9 +376,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
         </div>
 
         {/* Chart 2: Distribuicao de POPs */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+        <div className="bg-white p-4.5 rounded-xl border border-slate-200/80 shadow-2xs space-y-4">
           <div>
-            <h3 className="font-bold text-slate-900 text-sm">Distribuição por Status</h3>
+            <h3 className="font-bold text-slate-900 text-xs">Distribuição por Status</h3>
             <p className="text-xs text-slate-500">Status dos procedimentos operacionais</p>
           </div>
 
@@ -398,7 +398,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                     <Cell key={`pie-cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip contentStyle={{ borderRadius: '12px', fontSize: '12px' }} />
+                <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
                 <Legend wrapperStyle={{ fontSize: '11px' }} />
               </PieChart>
             </ResponsiveContainer>

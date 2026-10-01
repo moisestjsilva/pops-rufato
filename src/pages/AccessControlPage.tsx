@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { Employee, UserRole } from '../types';
+import { Employee, UserRole, AccountStatus } from '../types';
 
 interface AccessControlPageProps {
   onNavigate?: (path: string) => void;

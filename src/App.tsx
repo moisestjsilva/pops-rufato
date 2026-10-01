@@ -26,7 +26,14 @@ import { POP, POPVersion } from './types';
 function MainApp() {
   const { pops } = useData();
   const { currentUser, isAuthenticated, canCreatePOP, canEditPOP } = useAuth();
-  const [currentPath, setCurrentPath] = useState<string>('/');
+  const [currentPath, setCurrentPath] = useState<string>(() => {
+    if (typeof window !== 'undefined' && window.location.pathname) {
+      return window.location.pathname;
+    }
+    return '/';
+  });
+
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
   // Selected state for details & edits
   const [selectedPOPId, setSelectedPOPId] = useState<string | null>(null);
@@ -34,10 +41,23 @@ function MainApp() {
   const [isCreatingPOP, setIsCreatingPOP] = useState<boolean>(false);
   const [editingPOP, setEditingPOP] = useState<POP | null>(null);
 
+  React.useEffect(() => {
+    const handlePopState = () => {
+      setCurrentPath(window.location.pathname || '/');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const navigateTo = (path: string) => {
     setCurrentPath(path);
     setIsCreatingPOP(false);
     setEditingPOP(null);
+    setMobileMenuOpen(false);
+
+    if (typeof window !== 'undefined' && window.location.pathname !== path) {
+      window.history.pushState({}, '', path);
+    }
 
     // If path is e.g. /pops/pop-101
     if (path.startsWith('/pops/pop-')) {
@@ -224,14 +244,23 @@ function MainApp() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col font-sans text-slate-900 antialiased">
+    <div className="h-screen bg-[#f8fafc] flex font-sans text-slate-900 antialiased overflow-hidden">
       {!isValidationPage && (
-        <Header onNavigate={navigateTo} />
+        <Sidebar 
+          currentPath={currentPath} 
+          onNavigate={navigateTo} 
+          mobileOpen={mobileMenuOpen}
+          onCloseMobile={() => setMobileMenuOpen(false)}
+        />
       )}
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {!isValidationPage && (
-          <Sidebar currentPath={currentPath} onNavigate={navigateTo} />
+          <Header 
+            currentPath={currentPath} 
+            onNavigate={navigateTo} 
+            onOpenMobile={() => setMobileMenuOpen(true)}
+          />
         )}
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">

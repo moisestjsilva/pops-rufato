@@ -1,26 +1,34 @@
-import React, { useState } from 'react';
-import { ShieldAlert, X, Info } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ShieldCheck, X } from 'lucide-react';
 
 export const LegalDisclaimerBanner: React.FC = () => {
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState<boolean>(() => {
+    return localStorage.getItem('hide_legal_disclaimer') === 'true';
+  });
 
   if (dismissed) return null;
 
+  const handleDismiss = () => {
+    localStorage.setItem('hide_legal_disclaimer', 'true');
+    setDismissed(true);
+  };
+
   return (
-    <div className="no-print bg-amber-50 border-l-4 border-amber-500 p-3.5 mb-5 rounded-r-lg shadow-xs flex items-start justify-between gap-3 text-amber-900 text-xs sm:text-sm">
-      <div className="flex items-start gap-2.5">
-        <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-        <div>
-          <span className="font-bold">Aviso sobre Validade Jurídica de Evidências:</span> Os registros de ciência e assinaturas na tela no POP Control constituem evidências eletrônicas internas de recebimento e capacitação. Assinaturas simples na tela não equivalem automaticamente a assinaturas digitais qualificadas (GOV.BR / ICP-Brasil). Consulte seu departamento jurídico para validar requisitos legais específicos.
-        </div>
+    <div className="no-print bg-slate-50 border border-slate-200/90 p-3 mb-5 rounded-xl shadow-2xs flex items-center justify-between gap-3 text-slate-600 text-xs">
+      <div className="flex items-center gap-2.5">
+        <ShieldCheck className="w-4 h-4 text-slate-400 shrink-0" />
+        <p className="leading-relaxed">
+          <strong className="text-slate-800 font-semibold">Validade de Evidências:</strong> Os registros e assinaturas em tela constituem comprovações internas de recebimento e capacitação. Para validade qualificada (GOV.BR / ICP-Brasil), consulte as normas jurídicas aplicáveis.
+        </p>
       </div>
       <button
-        onClick={() => setDismissed(true)}
-        className="text-amber-700 hover:text-amber-950 p-1 rounded-md transition-colors"
-        title="Fechar aviso"
+        onClick={handleDismiss}
+        className="text-slate-400 hover:text-slate-700 p-1 rounded-md hover:bg-slate-200/50 transition-colors shrink-0"
+        title="Dispensar aviso"
       >
         <X className="w-4 h-4" />
       </button>
     </div>
   );
 };
+
