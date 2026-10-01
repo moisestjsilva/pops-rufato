@@ -18,7 +18,8 @@ import {
   Image as ImageIcon,
   Maximize2,
   X,
-  Paperclip
+  Paperclip,
+  MonitorPlay
 } from 'lucide-react';
 import { POP, POPVersion, Acknowledgement } from '../../types';
 import { formatDate, formatDateTime, getPOPStatusBadge, getRevisionStatus } from '../../utils/helpers';
@@ -26,6 +27,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { VersionHistoryModal } from './VersionHistoryModal';
 import { SignatureCanvasModal } from '../signature/SignatureCanvasModal';
+import { POPSlideshowModal } from './POPSlideshowModal';
+import { ImageLightboxModal } from '../common/ImageLightboxModal';
 import { generateElementPDF, generateEvidenceReportPDF } from '../../lib/pdfGenerator';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -61,6 +64,7 @@ export const POPViewer: React.FC<POPViewerProps> = ({
 
   const [showHistory, setShowHistory] = useState(false);
   const [showSignModal, setShowSignModal] = useState(false);
+  const [showSlideshow, setShowSlideshow] = useState(false);
   const [selectedImageModal, setSelectedImageModal] = useState<{ url: string; title: string; caption?: string } | null>(null);
 
   // Active version to render (defaults to current active version or explicit selected version)
@@ -138,6 +142,17 @@ export const POPViewer: React.FC<POPViewerProps> = ({
 
         {/* Header Action Buttons */}
         <div className="flex items-center gap-2 flex-wrap">
+          {content.steps && content.steps.length > 0 && (
+            <button
+              onClick={() => setShowSlideshow(true)}
+              className="px-3 py-1.5 text-xs font-semibold text-slate-800 bg-white hover:bg-slate-50 rounded-lg border border-slate-300 flex items-center gap-1.5 shadow-2xs transition-colors"
+              title="Apresentação de Slides Passo a Passo"
+            >
+              <MonitorPlay className="w-3.5 h-3.5 text-blue-600" />
+              <span>Apresentação / Slides</span>
+            </button>
+          )}
+
           <button
             onClick={() => setShowHistory(true)}
             className="px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-lg border border-slate-200 flex items-center gap-1.5"
@@ -296,8 +311,19 @@ export const POPViewer: React.FC<POPViewerProps> = ({
 
           {/* Section 5 - Procedimento em Passos */}
           <div>
-            <h3 className="font-extrabold text-blue-900 text-sm sm:text-base border-b-2 border-blue-900 pb-1 mb-3">
-              5. PROCEDIMENTO DE EXECUÇÃO
+            <h3 className="font-extrabold text-blue-900 text-sm sm:text-base border-b-2 border-blue-900 pb-1 mb-3 flex items-center justify-between flex-wrap gap-2">
+              <span>5. PROCEDIMENTO DE EXECUÇÃO</span>
+              {content.steps && content.steps.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowSlideshow(true)}
+                  className="no-print text-xs font-semibold text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-md border border-blue-200 flex items-center gap-1.5 transition-colors"
+                  title="Abrir Apresentação de Slides"
+                >
+                  <MonitorPlay className="w-3.5 h-3.5" />
+                  <span>Apresentação em Slides &rarr;</span>
+                </button>
+              )}
             </h3>
 
             {content.steps && content.steps.length > 0 ? (
@@ -516,47 +542,23 @@ export const POPViewer: React.FC<POPViewerProps> = ({
         versionNumber={activeVersion?.version_number || '01'}
       />
 
-      {/* Step Image Lightbox / Zoom Modal */}
+      {/* Image Lightbox Modal with Zoom & Fullscreen */}
       {selectedImageModal && (
-        <div 
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4"
-          onClick={() => setSelectedImageModal(null)}
-        >
-          <div 
-            className="bg-white rounded-2xl max-w-3xl w-full overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between p-4 border-b border-slate-200">
-              <div className="flex items-center gap-2">
-                <ImageIcon className="w-5 h-5 text-blue-600" />
-                <h3 className="font-bold text-slate-900 text-sm">
-                  {selectedImageModal.title}
-                </h3>
-              </div>
-              <button
-                onClick={() => setSelectedImageModal(null)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+        <ImageLightboxModal
+          image={selectedImageModal}
+          onClose={() => setSelectedImageModal(null)}
+        />
+      )}
 
-            <div className="p-4 bg-slate-950 flex items-center justify-center overflow-auto flex-1">
-              <img
-                src={selectedImageModal.url}
-                alt={selectedImageModal.title}
-                className="max-h-[65vh] w-auto max-w-full object-contain rounded-lg shadow-md"
-              />
-            </div>
-
-            {selectedImageModal.caption && (
-              <div className="p-3.5 bg-slate-50 border-t border-slate-200 text-xs text-slate-700">
-                <span className="font-semibold text-slate-900">Legenda: </span>
-                <span>{selectedImageModal.caption}</span>
-              </div>
-            )}
-          </div>
-        </div>
+      {/* Step by Step Slideshow Mode */}
+      {showSlideshow && activeVersion && (
+        <POPSlideshowModal
+          pop={pop}
+          version={activeVersion}
+          steps={content.steps || []}
+          onClose={() => setShowSlideshow(false)}
+          onOpenImage={(img) => setSelectedImageModal(img)}
+        />
       )}
 
       {/* Modal de Confirmação de Exclusão de POP */}
