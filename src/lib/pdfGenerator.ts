@@ -17,7 +17,7 @@ export async function generateElementPDF(elementId: string, filename: string): P
       return new Promise<void>((resolve) => {
         img.onload = () => resolve();
         img.onerror = () => resolve();
-        setTimeout(resolve, 1200); // 1.2s timeout fallback
+        setTimeout(resolve, 1500); // 1.5s timeout fallback
       });
     })
   );
@@ -30,29 +30,67 @@ export async function generateElementPDF(elementId: string, filename: string): P
       logging: false,
       backgroundColor: '#ffffff',
       scrollX: 0,
-      scrollY: -window.scrollY,
+      scrollY: 0,
+      height: element.scrollHeight,
+      windowHeight: element.scrollHeight,
       windowWidth: document.documentElement.offsetWidth || 1280,
+      onclone: (clonedDoc) => {
+        const clonedEl = clonedDoc.getElementById(elementId);
+        if (clonedEl) {
+          clonedEl.style.overflow = 'visible';
+          clonedEl.style.height = 'auto';
+          clonedEl.style.maxHeight = 'none';
+        }
+      },
       ignoreElements: (el) => {
         return el.classList && el.classList.contains('no-print');
       }
     });
 
-    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+    const a4WidthMm = 210;
+    const a4HeightMm = 297;
+    
+    // Altura de uma página A4 em pixels no canvas master
+    const canvasPageHeight = Math.floor(canvas.width * (a4HeightMm / a4WidthMm));
+    const totalPages = Math.ceil(canvas.height / canvasPageHeight);
+    
     const pdf = new jsPDF('p', 'mm', 'a4');
-    const imgWidth = 210;
-    const pageHeight = 297;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    let heightLeft = imgHeight;
-    let position = 0;
 
-    pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
+    for (let i = 0; i < totalPages; i++) {
+      if (i > 0) {
+        pdf.addPage();
+      }
 
-    while (heightLeft > 2) {
-      position = heightLeft - imgHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+      const srcY = i * canvasPageHeight;
+      const srcHeight = Math.min(canvasPageHeight, canvas.height - srcY);
+
+      // Criar canvas individual para cada página A4
+      const pageCanvas = document.createElement('canvas');
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = canvasPageHeight;
+
+      const pageCtx = pageCanvas.getContext('2d');
+      if (pageCtx) {
+        // Fundo branco limpo
+        pageCtx.fillStyle = '#ffffff';
+        pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+        
+        // Desenha a fatia exata da página
+        pageCtx.drawImage(
+          canvas,
+          0,
+          srcY,
+          canvas.width,
+          srcHeight,
+          0,
+          0,
+          canvas.width,
+          srcHeight
+        );
+
+        const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.95);
+        pdf.addImage(pageImgData, 'JPEG', 0, 0, a4WidthMm, a4HeightMm);
+      }
     }
 
     pdf.save(filename);
