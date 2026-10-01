@@ -145,7 +145,7 @@ export const ImageLightboxModal: React.FC<ImageLightboxModalProps> = ({
   return (
     <div 
       ref={containerRef}
-      className="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-md flex flex-col select-none animate-in fade-in duration-150"
+      className="fixed inset-0 z-[100] bg-slate-950/98 backdrop-blur-md flex flex-col select-none animate-in fade-in duration-150"
       onWheel={handleWheel}
       onMouseUp={handleMouseUp}
     >

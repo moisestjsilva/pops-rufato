@@ -9,11 +9,11 @@ import {
   Image as ImageIcon, 
   ZoomIn,
   CheckCircle2,
-  Sparkles,
   Layers,
-  RotateCcw
+  Expand
 } from 'lucide-react';
 import { POP, POPVersion, POPStep } from '../../types';
+import { ImageLightboxModal } from '../common/ImageLightboxModal';
 
 interface POPSlideshowModalProps {
   pop: POP;
@@ -35,6 +35,7 @@ export const POPSlideshowModal: React.FC<POPSlideshowModalProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [currentIndex, setCurrentIndex] = useState<number>(initialStepIndex);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [slideLightboxImage, setSlideLightboxImage] = useState<{ url: string; title: string; caption?: string } | null>(null);
 
   const totalSteps = steps.length;
   const currentStep = steps[currentIndex];
@@ -75,6 +76,9 @@ export const POPSlideshowModal: React.FC<POPSlideshowModalProps> = ({
 
   // Keyboard navigation
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    // If lightbox is open inside slide, let lightbox handle its own keys
+    if (slideLightboxImage) return;
+
     if (e.key === 'ArrowRight' || e.key === ' ') {
       e.preventDefault();
       handleNext();
@@ -88,12 +92,23 @@ export const POPSlideshowModal: React.FC<POPSlideshowModalProps> = ({
     } else if (e.key === 'End') {
       setCurrentIndex(totalSteps - 1);
     }
-  }, [handleNext, handlePrev, onClose, totalSteps]);
+  }, [handleNext, handlePrev, onClose, totalSteps, slideLightboxImage]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
+
+  const handleOpenStepImage = () => {
+    if (!currentStep?.image_url) return;
+    const imgData = {
+      url: currentStep.image_url,
+      title: `Etapa ${currentStep.step_number || currentIndex + 1}: ${currentStep.title}`,
+      caption: currentStep.image_caption
+    };
+    setSlideLightboxImage(imgData);
+    onOpenImage?.(imgData);
+  };
 
   const progressPercent = totalSteps > 0 ? ((currentIndex + 1) / totalSteps) * 100 : 0;
 
@@ -126,7 +141,7 @@ export const POPSlideshowModal: React.FC<POPSlideshowModalProps> = ({
               </span>
             </div>
             <p className="text-[11px] text-slate-400 truncate">
-              Setor: {pop.department_name} | Modo Apresentação de Instrução
+              Setor: {pop.department_name} | Modo Apresentação de Treinamento
             </p>
           </div>
         </div>
@@ -157,7 +172,7 @@ export const POPSlideshowModal: React.FC<POPSlideshowModalProps> = ({
       </header>
 
       {/* Main Slide Workspace */}
-      <main className="flex-1 flex items-center justify-center p-4 sm:p-8 md:p-12 overflow-y-auto">
+      <main className="flex-1 flex items-center justify-center p-4 sm:p-6 md:p-10 overflow-y-auto">
         {totalSteps === 0 ? (
           <div className="text-center p-8 bg-white/5 rounded-2xl border border-white/10 max-w-md space-y-3">
             <Layers className="w-12 h-12 text-slate-500 mx-auto" />
@@ -173,9 +188,9 @@ export const POPSlideshowModal: React.FC<POPSlideshowModalProps> = ({
             </button>
           </div>
         ) : (
-          <div className="w-full max-w-5xl mx-auto flex flex-col justify-center animate-in fade-in zoom-in-95 duration-200">
+          <div className="w-full max-w-6xl mx-auto flex flex-col justify-center animate-in fade-in zoom-in-95 duration-200">
             {/* Step Slide Card */}
-            <div className="bg-slate-900/90 border border-white/10 rounded-2xl p-6 sm:p-10 shadow-2xl space-y-6">
+            <div className="bg-slate-900/90 border border-white/10 rounded-2xl p-6 sm:p-8 md:p-10 shadow-2xl space-y-6">
               {/* Step Header Indicator */}
               <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4">
                 <div className="flex items-center gap-3">
@@ -195,7 +210,7 @@ export const POPSlideshowModal: React.FC<POPSlideshowModalProps> = ({
               {/* Step Title & Grid Content */}
               <div className={`grid gap-6 sm:gap-8 items-start ${currentStep.image_url ? 'lg:grid-cols-12' : 'grid-cols-1'}`}>
                 {/* Text Content */}
-                <div className={`${currentStep.image_url ? 'lg:col-span-7' : 'max-w-3xl'} space-y-5`}>
+                <div className={`${currentStep.image_url ? 'lg:col-span-6' : 'max-w-3xl'} space-y-4`}>
                   <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-white tracking-tight leading-snug">
                     {currentStep.title}
                   </h2>
@@ -218,30 +233,41 @@ export const POPSlideshowModal: React.FC<POPSlideshowModalProps> = ({
                   )}
                 </div>
 
-                {/* Step Image Column (if attached) */}
+                {/* Step Image Column (Generous & High Visibility) */}
                 {currentStep.image_url && (
-                  <div className="lg:col-span-5 flex flex-col space-y-2">
+                  <div className="lg:col-span-6 flex flex-col space-y-3">
                     <div 
-                      className="group relative rounded-xl overflow-hidden border border-white/15 bg-black/40 cursor-pointer shadow-lg hover:border-blue-500/60 transition-colors"
-                      onClick={() => onOpenImage?.({
-                        url: currentStep.image_url!,
-                        title: `Etapa ${currentStep.step_number || currentIndex + 1}: ${currentStep.title}`,
-                        caption: currentStep.image_caption
-                      })}
+                      className="group relative rounded-2xl overflow-hidden border-2 border-white/20 hover:border-blue-500 bg-slate-950/80 cursor-pointer shadow-xl transition-all flex items-center justify-center p-2"
+                      onClick={handleOpenStepImage}
+                      title="Clique para abrir em tela cheia com zoom"
                     >
                       <img
                         src={currentStep.image_url}
                         alt={currentStep.image_caption || currentStep.title}
-                        className="w-full max-h-80 object-contain rounded-xl transition-transform duration-200 group-hover:scale-[1.02]"
+                        className="w-full max-h-[48vh] sm:max-h-[55vh] object-contain rounded-xl transition-transform duration-200 group-hover:scale-[1.01]"
                         loading="eager"
                         crossOrigin="anonymous"
                       />
                       
-                      <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 text-white font-semibold text-xs backdrop-blur-2xs">
-                        <ZoomIn className="w-4 h-4 text-blue-400" />
-                        <span>Clique para Ver em Tela Cheia / Zoom</span>
+                      {/* Hover Overlay with Zoom Icon */}
+                      <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 text-white font-semibold text-xs sm:text-sm backdrop-blur-2xs p-4 text-center">
+                        <div className="w-12 h-12 rounded-full bg-blue-600/90 text-white flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
+                          <ZoomIn className="w-6 h-6" />
+                        </div>
+                        <span className="font-bold">Clique para Abrir com Zoom e Tela Cheia</span>
+                        <span className="text-[11px] text-slate-300 font-normal">Aproximar, afastar e arrastar detalhes</span>
                       </div>
                     </div>
+
+                    {/* Dedicated Open Button right below image */}
+                    <button
+                      type="button"
+                      onClick={handleOpenStepImage}
+                      className="w-full py-2.5 px-4 bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 hover:text-white border border-blue-500/40 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-all shadow-sm active:scale-98"
+                    >
+                      <ZoomIn className="w-4 h-4 text-blue-400" />
+                      <span>Ver Imagem em Tamanho Maior (Zoom &amp; Tela Cheia)</span>
+                    </button>
 
                     {currentStep.image_caption && (
                       <p className="text-[11px] text-slate-400 text-center italic px-2">
@@ -305,6 +331,14 @@ export const POPSlideshowModal: React.FC<POPSlideshowModalProps> = ({
           </button>
         )}
       </footer>
+
+      {/* Lightbox Modal Rendered Inside Slideshow (Guarantees visibility even in browser Fullscreen!) */}
+      {slideLightboxImage && (
+        <ImageLightboxModal
+          image={slideLightboxImage}
+          onClose={() => setSlideLightboxImage(null)}
+        />
+      )}
     </div>
   );
 };
