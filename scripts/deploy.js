@@ -33,19 +33,19 @@ async function main() {
   // 1. Compilar Frontend
   run('npm run build', '1/3 Compilando frontend React + Tailwind');
 
-  // 2. Criar pacote zip e enviar via SCP/SSH
+  // 2. Criar pacote tar.gz e enviar via SCP/SSH
   console.log('\n⏳ 2/3 Empacotando e enviando arquivos para o CloudPanel...');
-  const zipPath = path.join(process.cwd(), 'deploy-cloudpanel.zip');
+  const tarPath = path.join(process.cwd(), 'deploy-cloudpanel.tar.gz');
   
   try {
-    // Cria arquivo zip no Windows usando PowerShell
-    execSync(`powershell -Command "Compress-Archive -Path dist,server.js,package.json -DestinationPath '${zipPath}' -Force"`, { stdio: 'inherit' });
+    // Cria arquivo tar.gz usando tar nativo
+    execSync(`tar -czf "${tarPath}" dist server.js package.json`, { stdio: 'inherit' });
     
     // Envia arquivo via SCP
-    execSync(`scp -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=no "${zipPath}" ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/`, { stdio: 'inherit' });
+    execSync(`scp -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=no "${tarPath}" ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/`, { stdio: 'inherit' });
     
     // Descompacta e reinicia o serviço via PM2
-    const restartCmd = `ssh -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} "export PATH=\\$PATH:/home/pops/.nvm/versions/node/v24.21.0/bin && cd ${REMOTE_DIR} && unzip -o deploy-cloudpanel.zip && (pm2 reload pops-rufato || PORT=3031 pm2 start server.js --name 'pops-rufato') && pm2 save"`;
+    const restartCmd = `ssh -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} "export PATH=\\$PATH:/home/pops/.nvm/versions/node/v24.21.0/bin && cd ${REMOTE_DIR} && tar -xzf deploy-cloudpanel.tar.gz && rm -f deploy-cloudpanel.tar.gz && (pm2 reload pops-rufato || PORT=3031 pm2 start server.js --name 'pops-rufato') && pm2 save"`;
     execSync(restartCmd, { stdio: 'inherit' });
     
     console.log('✅ Arquivos descompactados e serviço PM2 atualizado com sucesso!');
@@ -53,8 +53,8 @@ async function main() {
     console.warn('\n⚠️ Falha na transferência direta SSH/SCP: ' + err.message);
     console.warn('💡 Você pode usar: "git push origin main" para deploy automático pelo GitHub Actions.');
   } finally {
-    if (fs.existsSync(zipPath)) {
-      try { fs.unlinkSync(zipPath); } catch (e) {}
+    if (fs.existsSync(tarPath)) {
+      try { fs.unlinkSync(tarPath); } catch (e) {}
     }
   }
 
