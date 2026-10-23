@@ -18,12 +18,16 @@ import {
   Check,
   ChevronUp,
   ChevronDown,
-  Download
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  X
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
-import { POP, POPStep, POPAttachment, RevisionPeriodMonths } from '../../types';
-import { fileToOptimizedDataUrl, PRESET_STEP_IMAGES } from '../../utils/imageHelper';
+import { POP, POPStep, POPStepImage, POPAttachment, RevisionPeriodMonths } from '../../types';
+import { fileToOptimizedDataUrl, PRESET_STEP_IMAGES, getStepImages } from '../../utils/imageHelper';
+import { ImageLightboxModal } from '../common/ImageLightboxModal';
 
 interface POPEditCreateFormProps {
   initialPOP?: POP;
@@ -165,11 +169,37 @@ export const POPEditCreateForm: React.FC<POPEditCreateFormProps> = ({
     setAttachments(prev => prev.filter(a => a.id !== attId));
   };
 
-  const handleImageFileUpload = async (stepId: string, file: File) => {
+  const [previewImageModal, setPreviewImageModal] = useState<{ url: string; title: string; caption?: string } | null>(null);
+
+  const handleImageFilesUpload = async (stepId: string, files: FileList | File[]) => {
+    const fileList = Array.from(files);
+    if (fileList.length === 0) return;
+
     try {
       setUploadingStepId(stepId);
-      const dataUrl = await fileToOptimizedDataUrl(file);
-      setSteps(prev => prev.map(s => s.id === stepId ? { ...s, image_url: dataUrl } : s));
+      const newImages: POPStepImage[] = [];
+
+      for (let i = 0; i < fileList.length; i++) {
+        const file = fileList[i];
+        const dataUrl = await fileToOptimizedDataUrl(file);
+        newImages.push({
+          id: 'img-' + Date.now() + '-' + i + '-' + Math.random().toString(36).substring(2, 6),
+          url: dataUrl,
+          caption: ''
+        });
+      }
+
+      setSteps(prev => prev.map(s => {
+        if (s.id !== stepId) return s;
+        const currentImages = getStepImages(s);
+        const combined = [...currentImages, ...newImages];
+        return {
+          ...s,
+          images: combined,
+          image_url: combined[0]?.url,
+          image_caption: combined[0]?.caption
+        };
+      }));
     } catch (err: any) {
       alert(err.message || 'Erro ao processar imagem.');
     } finally {
@@ -178,20 +208,89 @@ export const POPEditCreateForm: React.FC<POPEditCreateFormProps> = ({
   };
 
   const handleSelectPreset = (stepId: string, preset: typeof PRESET_STEP_IMAGES[0]) => {
-    setSteps(prev => prev.map(s => s.id === stepId ? { 
-      ...s, 
-      image_url: preset.dataUrl, 
-      image_caption: s.image_caption || preset.caption 
-    } : s));
+    const newImg: POPStepImage = {
+      id: 'img-preset-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+      url: preset.dataUrl,
+      caption: preset.caption
+    };
+
+    setSteps(prev => prev.map(s => {
+      if (s.id !== stepId) return s;
+      const currentImages = getStepImages(s);
+      const combined = [...currentImages, newImg];
+      return {
+        ...s,
+        images: combined,
+        image_url: combined[0]?.url,
+        image_caption: combined[0]?.caption
+      };
+    }));
   };
 
-  const handleRemoveImage = (stepId: string) => {
-    setSteps(prev => prev.map(s => s.id === stepId ? { ...s, image_url: undefined, image_caption: undefined } : s));
+  const handleRemoveStepImage = (stepId: string, imageId: string) => {
+    setSteps(prev => prev.map(s => {
+      if (s.id !== stepId) return s;
+      const currentImages = getStepImages(s);
+      const filtered = currentImages.filter(img => img.id !== imageId);
+      return {
+        ...s,
+        images: filtered,
+        image_url: filtered[0]?.url,
+        image_caption: filtered[0]?.caption
+      };
+    }));
+  };
+
+  const handleUpdateStepImageCaption = (stepId: string, imageId: string, caption: string) => {
+    setSteps(prev => prev.map(s => {
+      if (s.id !== stepId) return s;
+      const currentImages = getStepImages(s);
+      const updated = currentImages.map(img => img.id === imageId ? { ...img, caption } : img);
+      return {
+        ...s,
+        images: updated,
+        image_caption: updated[0]?.caption
+      };
+    }));
+  };
+
+  const handleMoveStepImage = (stepId: string, imgIndex: number, direction: 'prev' | 'next') => {
+    setSteps(prev => prev.map(s => {
+      if (s.id !== stepId) return s;
+      const currentImages = [...getStepImages(s)];
+      const targetIndex = direction === 'prev' ? imgIndex - 1 : imgIndex + 1;
+      if (targetIndex < 0 || targetIndex >= currentImages.length) return s;
+      const temp = currentImages[imgIndex];
+      currentImages[imgIndex] = currentImages[targetIndex];
+      currentImages[targetIndex] = temp;
+      return {
+        ...s,
+        images: currentImages,
+        image_url: currentImages[0]?.url,
+        image_caption: currentImages[0]?.caption
+      };
+    }));
   };
 
   const handleApplyUrl = (stepId: string) => {
     if (!tempUrl.trim()) return;
-    setSteps(prev => prev.map(s => s.id === stepId ? { ...s, image_url: tempUrl.trim() } : s));
+    const newImg: POPStepImage = {
+      id: 'img-url-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+      url: tempUrl.trim(),
+      caption: ''
+    };
+
+    setSteps(prev => prev.map(s => {
+      if (s.id !== stepId) return s;
+      const currentImages = getStepImages(s);
+      const combined = [...currentImages, newImg];
+      return {
+        ...s,
+        images: combined,
+        image_url: combined[0]?.url,
+        image_caption: combined[0]?.caption
+      };
+    }));
     setUrlInputStepId(null);
     setTempUrl('');
   };
@@ -605,146 +704,203 @@ export const POPEditCreateForm: React.FC<POPEditCreateFormProps> = ({
                   className="w-full p-1.5 text-xs rounded-lg border border-rose-200 bg-rose-50 text-rose-900"
                 />
 
-                {/* Step Attached Image Section */}
-                {step.image_url ? (
-                  <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
-                        <ImageIcon className="w-3.5 h-3.5 text-blue-600" />
-                        Foto / Esquema Anexado a este Passo
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <label className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 cursor-pointer flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-md hover:bg-blue-100 transition-colors">
-                          <Upload className="w-3 h-3" />
-                          Substituir Imagem
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={e => {
-                              const file = e.target.files?.[0];
-                              if (file) handleImageFileUpload(step.id, file);
-                            }}
-                          />
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveImage(step.id)}
-                          className="text-[11px] font-semibold text-rose-600 hover:text-rose-800 flex items-center gap-0.5 bg-rose-50 px-2 py-0.5 rounded-md hover:bg-rose-100 transition-colors"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                          Remover Foto
-                        </button>
-                      </div>
-                    </div>
+                {/* Step Attached Images Section */}
+                {(() => {
+                  const stepImages = getStepImages(step);
+                  const hasImages = stepImages.length > 0;
 
-                    <div className="flex flex-col sm:flex-row gap-3 items-start">
-                      <div className="w-full sm:w-44 h-28 bg-slate-900/5 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center shrink-0">
-                        <img
-                          src={step.image_url}
-                          alt="Preview do passo"
-                          className="w-full h-full object-contain"
-                        />
-                      </div>
-                      <div className="flex-1 space-y-1.5 w-full">
-                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                          Legenda da Imagem (Exibida no PDF e na Leitura)
-                        </label>
-                        <input
-                          type="text"
-                          value={step.image_caption || ''}
-                          onChange={e => handleStepChange(step.id, 'image_caption', e.target.value)}
-                          placeholder="Ex: Detalhe do painel de acionamento com a trava de segurança ativada..."
-                          className="w-full p-2 text-xs rounded-lg border border-slate-300 bg-white"
-                        />
-                        <p className="text-[10px] text-emerald-600 font-medium flex items-center gap-1">
-                          <Check className="w-3 h-3" /> Imagem pronta. Será impressa logo abaixo deste passo no PDF.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-2.5 bg-white/80 rounded-xl border border-dashed border-slate-300 space-y-2">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <span className="text-xs font-semibold text-slate-600 flex items-center gap-1.5">
-                        <Camera className="w-3.5 h-3.5 text-slate-400" />
-                        Anexar Foto ou Esquema ao Passo:
-                      </span>
+                  return (
+                    <div className={`rounded-xl border transition-all ${
+                      hasImages ? 'p-3.5 bg-slate-50/80 border-slate-200 space-y-3' : 'p-3 bg-white/80 border-dashed border-slate-300 space-y-2.5'
+                    }`}>
+                      {/* Top Header Row */}
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-2">
+                          {hasImages ? (
+                            <ImageIcon className="w-4 h-4 text-blue-600 shrink-0" />
+                          ) : (
+                            <Camera className="w-4 h-4 text-slate-500 shrink-0" />
+                          )}
+                          <span className="text-xs font-bold text-slate-700">
+                            {hasImages ? 'Fotos e Esquemas deste Passo:' : 'Anexar Fotos ou Esquema ao Passo:'}
+                          </span>
+                          {hasImages && (
+                            <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                              {stepImages.length} {stepImages.length === 1 ? 'imagem anexada' : 'imagens anexadas'}
+                            </span>
+                          )}
+                        </div>
 
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <label className="text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded-lg cursor-pointer flex items-center gap-1.5 shadow-xs transition-colors">
-                          <Upload className="w-3.5 h-3.5" />
-                          {uploadingStepId === step.id ? 'Processando...' : 'Carregar Imagem'}
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            disabled={uploadingStepId === step.id}
-                            onChange={e => {
-                              const file = e.target.files?.[0];
-                              if (file) handleImageFileUpload(step.id, file);
-                            }}
-                          />
-                        </label>
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <label className="text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded-lg cursor-pointer flex items-center gap-1.5 shadow-xs transition-colors">
+                            <Upload className="w-3.5 h-3.5" />
+                            {uploadingStepId === step.id ? 'Processando...' : (hasImages ? '+ Adicionar Mais Imagens' : 'Carregar Imagens')}
+                            <input
+                              type="file"
+                              multiple
+                              accept="image/*"
+                              className="hidden"
+                              disabled={uploadingStepId === step.id}
+                              onChange={e => {
+                                if (e.target.files && e.target.files.length > 0) {
+                                  handleImageFilesUpload(step.id, e.target.files);
+                                  e.target.value = '';
+                                }
+                              }}
+                            />
+                          </label>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (urlInputStepId === step.id) {
-                              setUrlInputStepId(null);
-                            } else {
-                              setUrlInputStepId(step.id);
-                              setTempUrl('');
-                            }
-                          }}
-                          className="text-xs font-semibold text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg flex items-center gap-1"
-                        >
-                          <Link className="w-3.5 h-3.5 text-slate-500" />
-                          Colar URL
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* URL Input Box */}
-                    {urlInputStepId === step.id && (
-                      <div className="flex items-center gap-2 pt-1">
-                        <input
-                          type="url"
-                          value={tempUrl}
-                          onChange={e => setTempUrl(e.target.value)}
-                          placeholder="Cole aqui o link da imagem (https://...)"
-                          className="flex-1 p-1.5 text-xs rounded-lg border border-slate-300 bg-white"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleApplyUrl(step.id)}
-                          className="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg flex items-center gap-1"
-                        >
-                          <Check className="w-3.5 h-3.5" /> Aplicar
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Presets */}
-                    <div className="pt-1.5 border-t border-slate-100">
-                      <span className="text-[10px] font-semibold text-slate-400 block mb-1">
-                        Ou selecione um modelo industrial rápido:
-                      </span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {PRESET_STEP_IMAGES.map(preset => (
                           <button
-                            key={preset.id}
                             type="button"
-                            onClick={() => handleSelectPreset(step.id, preset)}
-                            className="text-[10px] font-medium text-slate-600 hover:text-blue-700 bg-slate-100 hover:bg-blue-50 hover:border-blue-300 border border-slate-200 px-2 py-0.5 rounded-md transition-colors"
+                            onClick={() => {
+                              if (urlInputStepId === step.id) {
+                                setUrlInputStepId(null);
+                              } else {
+                                setUrlInputStepId(step.id);
+                                setTempUrl('');
+                              }
+                            }}
+                            className="text-xs font-semibold text-slate-600 hover:text-slate-800 bg-white hover:bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors"
                           >
-                            + {preset.label}
+                            <Link className="w-3.5 h-3.5 text-slate-500" />
+                            + URL
                           </button>
-                        ))}
+                        </div>
+                      </div>
+
+                      {/* URL Input Box */}
+                      {urlInputStepId === step.id && (
+                        <div className="flex items-center gap-2 p-2 bg-white rounded-lg border border-blue-200 shadow-xs">
+                          <input
+                            type="url"
+                            value={tempUrl}
+                            onChange={e => setTempUrl(e.target.value)}
+                            placeholder="Cole aqui o link da imagem (https://...)"
+                            className="flex-1 p-1.5 text-xs rounded-md border border-slate-300 bg-slate-50"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleApplyUrl(step.id)}
+                            className="px-3 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-md flex items-center gap-1 shrink-0"
+                          >
+                            <Check className="w-3.5 h-3.5" /> Adicionar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setUrlInputStepId(null)}
+                            className="p-1.5 text-xs text-slate-400 hover:text-slate-600 rounded-md"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Grid of Attached Images */}
+                      {hasImages && (
+                        <div className="space-y-3 pt-1">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {stepImages.map((img, imgIdx) => (
+                              <div 
+                                key={img.id || imgIdx}
+                                className="bg-white rounded-xl border border-slate-200 p-2.5 shadow-xs flex flex-col justify-between space-y-2 hover:border-blue-300 transition-colors"
+                              >
+                                {/* Image Preview & Order Controls */}
+                                <div className="relative group bg-slate-950/5 rounded-lg overflow-hidden border border-slate-200 h-36 flex items-center justify-center">
+                                  <img
+                                    src={img.url}
+                                    alt={img.caption || `Foto ${imgIdx + 1}`}
+                                    className="max-h-full max-w-full object-contain cursor-pointer"
+                                    onClick={() => setPreviewImageModal({
+                                      url: img.url,
+                                      title: `${step.step_number} - ${step.title} (Foto ${imgIdx + 1})`,
+                                      caption: img.caption
+                                    })}
+                                    title="Clique para ver imagem em tela cheia com zoom"
+                                  />
+                                  <div className="absolute top-1.5 left-1.5 bg-slate-900/80 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-xs">
+                                    Foto {imgIdx + 1} de {stepImages.length}
+                                  </div>
+
+                                  {/* Actions overlay */}
+                                  <div className="absolute top-1.5 right-1.5 flex items-center gap-1 bg-slate-900/85 p-0.5 rounded-md backdrop-blur-xs shadow-sm">
+                                    <button
+                                      type="button"
+                                      disabled={imgIdx === 0}
+                                      onClick={() => handleMoveStepImage(step.id, imgIdx, 'prev')}
+                                      className="p-1 text-slate-300 hover:text-white disabled:opacity-20 disabled:hover:text-slate-300 rounded"
+                                      title="Mover foto para a esquerda/anterior"
+                                    >
+                                      <ChevronLeft className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={imgIdx === stepImages.length - 1}
+                                      onClick={() => handleMoveStepImage(step.id, imgIdx, 'next')}
+                                      className="p-1 text-slate-300 hover:text-white disabled:opacity-20 disabled:hover:text-slate-300 rounded"
+                                      title="Mover foto para a direita/próxima"
+                                    >
+                                      <ChevronRight className="w-3.5 h-3.5" />
+                                    </button>
+                                    <div className="w-px h-3 bg-white/20 mx-0.5" />
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveStepImage(step.id, img.id)}
+                                      className="p-1 text-rose-300 hover:text-rose-100 hover:bg-rose-600/70 rounded transition-colors"
+                                      title="Remover esta foto"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Caption input */}
+                                <div>
+                                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-0.5">
+                                    Legenda da Foto {imgIdx + 1} (Exibida no PDF e na Leitura)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={img.caption || ''}
+                                    onChange={e => handleUpdateStepImageCaption(step.id, img.id, e.target.value)}
+                                    placeholder="Ex: Ponto de lubrificação, detalhe do botão..."
+                                    className="w-full p-1.5 text-xs rounded-lg border border-slate-300 bg-slate-50 focus:bg-white focus:ring-1 focus:ring-blue-500"
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="flex items-center justify-between text-[11px] text-emerald-700 font-medium bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200">
+                            <span className="flex items-center gap-1.5">
+                              <Check className="w-3.5 h-3.5 text-emerald-600" />
+                              {stepImages.length} {stepImages.length === 1 ? 'foto pronta.' : 'fotos prontas.'} Serão impressas e diagramadas no PDF e exibidas na leitura.
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Presets */}
+                      <div className="pt-2 border-t border-slate-200/70">
+                        <span className="text-[10px] font-semibold text-slate-500 block mb-1">
+                          {hasImages ? '+ Adicionar modelo industrial como foto adicional:' : 'Ou selecione um modelo industrial rápido:'}
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {PRESET_STEP_IMAGES.map(preset => (
+                            <button
+                              key={preset.id}
+                              type="button"
+                              onClick={() => handleSelectPreset(step.id, preset)}
+                              className="text-[10px] font-medium text-slate-600 hover:text-blue-700 bg-white hover:bg-blue-50 hover:border-blue-300 border border-slate-200 px-2 py-0.5 rounded-md transition-colors"
+                            >
+                              + {preset.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             ))}
           </div>
@@ -855,6 +1011,14 @@ export const POPEditCreateForm: React.FC<POPEditCreateFormProps> = ({
           </div>
         )}
       </div>
+
+      {/* Fullscreen image preview lightbox */}
+      {previewImageModal && (
+        <ImageLightboxModal
+          image={previewImageModal}
+          onClose={() => setPreviewImageModal(null)}
+        />
+      )}
     </form>
   );
 };

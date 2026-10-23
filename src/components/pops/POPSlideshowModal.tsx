@@ -13,6 +13,7 @@ import {
   Expand
 } from 'lucide-react';
 import { POP, POPVersion, POPStep } from '../../types';
+import { getStepImages } from '../../utils/imageHelper';
 import { ImageLightboxModal } from '../common/ImageLightboxModal';
 
 interface POPSlideshowModalProps {
@@ -35,10 +36,25 @@ export const POPSlideshowModal: React.FC<POPSlideshowModalProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [currentIndex, setCurrentIndex] = useState<number>(initialStepIndex);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
-  const [slideLightboxImage, setSlideLightboxImage] = useState<{ url: string; title: string; caption?: string } | null>(null);
+  const [slideLightboxImage, setSlideLightboxImage] = useState<{ 
+    url: string; 
+    title: string; 
+    caption?: string;
+    images?: { url: string; title: string; caption?: string }[];
+    currentIndex?: number;
+  } | null>(null);
 
   const totalSteps = steps.length;
   const currentStep = steps[currentIndex];
+  const stepImages = currentStep ? getStepImages(currentStep) : [];
+  const [activeStepImageIndex, setActiveStepImageIndex] = useState<number>(0);
+
+  // Reset active step image index when step changes
+  useEffect(() => {
+    setActiveStepImageIndex(0);
+  }, [currentIndex]);
+
+  const activeImage = stepImages[activeStepImageIndex] || stepImages[0];
 
   const handlePrev = useCallback(() => {
     setCurrentIndex(prev => Math.max(prev - 1, 0));
@@ -99,12 +115,22 @@ export const POPSlideshowModal: React.FC<POPSlideshowModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  const handleOpenStepImage = () => {
-    if (!currentStep?.image_url) return;
+  const handleOpenStepImage = (indexToOpen?: number) => {
+    if (stepImages.length === 0) return;
+    const targetIdx = indexToOpen !== undefined ? indexToOpen : activeStepImageIndex;
+    const targetImg = stepImages[targetIdx] || stepImages[0];
+    const lightboxItems = stepImages.map((img, i) => ({
+      url: img.url,
+      title: `Etapa ${currentStep.step_number || currentIndex + 1}: ${currentStep.title}${stepImages.length > 1 ? ` (Foto ${i + 1} de ${stepImages.length})` : ''}`,
+      caption: img.caption
+    }));
+
     const imgData = {
-      url: currentStep.image_url,
-      title: `Etapa ${currentStep.step_number || currentIndex + 1}: ${currentStep.title}`,
-      caption: currentStep.image_caption
+      url: targetImg.url,
+      title: lightboxItems[targetIdx]?.title || currentStep.title,
+      caption: targetImg.caption,
+      images: lightboxItems,
+      currentIndex: targetIdx
     };
     setSlideLightboxImage(imgData);
     onOpenImage?.(imgData);
@@ -208,75 +234,142 @@ export const POPSlideshowModal: React.FC<POPSlideshowModalProps> = ({
               </div>
 
               {/* Step Title & Grid Content */}
-              <div className={`grid gap-6 sm:gap-8 items-start ${currentStep.image_url ? 'lg:grid-cols-12' : 'grid-cols-1'}`}>
-                {/* Text Content */}
-                <div className={`${currentStep.image_url ? 'lg:col-span-6' : 'max-w-3xl'} space-y-4`}>
-                  <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-white tracking-tight leading-snug">
-                    {currentStep.title}
-                  </h2>
+              {(() => {
+                const hasImages = stepImages.length > 0;
+                return (
+                  <div className={`grid gap-6 sm:gap-8 items-start ${hasImages ? 'lg:grid-cols-12' : 'grid-cols-1'}`}>
+                    {/* Text Content */}
+                    <div className={`${hasImages ? 'lg:col-span-6' : 'max-w-3xl'} space-y-4`}>
+                      <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-white tracking-tight leading-snug">
+                        {currentStep.title}
+                      </h2>
 
-                  <div className="p-4 sm:p-5 bg-white/5 rounded-xl border border-white/10 text-slate-200 text-sm sm:text-base leading-relaxed whitespace-pre-line font-normal">
-                    {currentStep.description}
-                  </div>
-
-                  {/* Safety Alert Warning */}
-                  {currentStep.warning && (
-                    <div className="p-4 bg-amber-500/10 border-l-4 border-amber-500 rounded-r-xl text-amber-200 text-xs sm:text-sm flex items-start gap-3">
-                      <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-                      <div>
-                        <strong className="text-amber-300 font-bold block mb-0.5">
-                          Cuidados Operacionais &amp; Segurança:
-                        </strong>
-                        <span>{currentStep.warning}</span>
+                      <div className="p-4 sm:p-5 bg-white/5 rounded-xl border border-white/10 text-slate-200 text-sm sm:text-base leading-relaxed whitespace-pre-line font-normal">
+                        {currentStep.description}
                       </div>
-                    </div>
-                  )}
-                </div>
 
-                {/* Step Image Column (Generous & High Visibility) */}
-                {currentStep.image_url && (
-                  <div className="lg:col-span-6 flex flex-col space-y-3">
-                    <div 
-                      className="group relative rounded-2xl overflow-hidden border-2 border-white/20 hover:border-blue-500 bg-slate-950/80 cursor-pointer shadow-xl transition-all flex items-center justify-center p-2"
-                      onClick={handleOpenStepImage}
-                      title="Clique para abrir em tela cheia com zoom"
-                    >
-                      <img
-                        src={currentStep.image_url}
-                        alt={currentStep.image_caption || currentStep.title}
-                        className="w-full max-h-[48vh] sm:max-h-[55vh] object-contain rounded-xl transition-transform duration-200 group-hover:scale-[1.01]"
-                        loading="eager"
-                        crossOrigin="anonymous"
-                      />
-                      
-                      {/* Hover Overlay with Zoom Icon */}
-                      <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 text-white font-semibold text-xs sm:text-sm backdrop-blur-2xs p-4 text-center">
-                        <div className="w-12 h-12 rounded-full bg-blue-600/90 text-white flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
-                          <ZoomIn className="w-6 h-6" />
+                      {/* Safety Alert Warning */}
+                      {currentStep.warning && (
+                        <div className="p-4 bg-amber-500/10 border-l-4 border-amber-500 rounded-r-xl text-amber-200 text-xs sm:text-sm flex items-start gap-3">
+                          <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                          <div>
+                            <strong className="text-amber-300 font-bold block mb-0.5">
+                              Cuidados Operacionais &amp; Segurança:
+                            </strong>
+                            <span>{currentStep.warning}</span>
+                          </div>
                         </div>
-                        <span className="font-bold">Clique para Abrir com Zoom e Tela Cheia</span>
-                        <span className="text-[11px] text-slate-300 font-normal">Aproximar, afastar e arrastar detalhes</span>
-                      </div>
+                      )}
                     </div>
 
-                    {/* Dedicated Open Button right below image */}
-                    <button
-                      type="button"
-                      onClick={handleOpenStepImage}
-                      className="w-full py-2.5 px-4 bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 hover:text-white border border-blue-500/40 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-all shadow-sm active:scale-98"
-                    >
-                      <ZoomIn className="w-4 h-4 text-blue-400" />
-                      <span>Ver Imagem em Tamanho Maior (Zoom &amp; Tela Cheia)</span>
-                    </button>
+                    {/* Step Image Column (Generous & High Visibility) */}
+                    {hasImages && activeImage && (
+                      <div className="lg:col-span-6 flex flex-col space-y-3">
+                        <div 
+                          className="group relative rounded-2xl overflow-hidden border-2 border-white/20 hover:border-blue-500 bg-slate-950/80 cursor-pointer shadow-xl transition-all flex items-center justify-center p-2"
+                          onClick={() => handleOpenStepImage()}
+                          title="Clique para abrir em tela cheia com zoom"
+                        >
+                          <img
+                            key={activeImage.url}
+                            src={activeImage.url}
+                            alt={activeImage.caption || currentStep.title}
+                            className="w-full max-h-[46vh] sm:max-h-[52vh] object-contain rounded-xl transition-transform duration-200 group-hover:scale-[1.01]"
+                            loading="eager"
+                            crossOrigin="anonymous"
+                          />
 
-                    {currentStep.image_caption && (
-                      <p className="text-[11px] text-slate-400 text-center italic px-2">
-                        {currentStep.image_caption}
-                      </p>
+                          {/* Multiple photos indicator badge */}
+                          {stepImages.length > 1 && (
+                            <div className="absolute top-3 left-3 bg-slate-900/85 text-blue-200 border border-blue-400/30 text-[11px] font-bold px-2.5 py-1 rounded-full shadow-lg backdrop-blur-xs flex items-center gap-1.5 pointer-events-none">
+                              <ImageIcon className="w-3.5 h-3.5 text-blue-400" />
+                              Foto {activeStepImageIndex + 1} de {stepImages.length}
+                            </div>
+                          )}
+
+                          {/* Navigation arrows for images within the slide */}
+                          {stepImages.length > 1 && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveStepImageIndex(prev => (prev > 0 ? prev - 1 : stepImages.length - 1));
+                                }}
+                                className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-slate-900/80 hover:bg-blue-600 text-white flex items-center justify-center backdrop-blur-sm border border-white/20 shadow-lg transition-transform hover:scale-110 active:scale-95"
+                                title="Foto anterior deste passo"
+                              >
+                                <ChevronLeft className="w-5 h-5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveStepImageIndex(prev => (prev < stepImages.length - 1 ? prev + 1 : 0));
+                                }}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-slate-900/80 hover:bg-blue-600 text-white flex items-center justify-center backdrop-blur-sm border border-white/20 shadow-lg transition-transform hover:scale-110 active:scale-95"
+                                title="Próxima foto deste passo"
+                              >
+                                <ChevronRight className="w-5 h-5" />
+                              </button>
+                            </>
+                          )}
+                          
+                          {/* Hover Overlay with Zoom Icon */}
+                          <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 text-white font-semibold text-xs sm:text-sm backdrop-blur-2xs p-4 text-center pointer-events-none">
+                            <div className="w-12 h-12 rounded-full bg-blue-600/90 text-white flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
+                              <ZoomIn className="w-6 h-6" />
+                            </div>
+                            <span className="font-bold">Clique para Abrir com Zoom e Tela Cheia</span>
+                            <span className="text-[11px] text-slate-300 font-normal">Aproximar, afastar e arrastar detalhes</span>
+                          </div>
+                        </div>
+
+                        {/* Thumbnail selector when multiple photos exist */}
+                        {stepImages.length > 1 && (
+                          <div className="flex items-center gap-2 overflow-x-auto p-1.5 bg-white/5 rounded-xl border border-white/10">
+                            {stepImages.map((img, idx) => (
+                              <button
+                                key={img.id || idx}
+                                type="button"
+                                onClick={() => setActiveStepImageIndex(idx)}
+                                className={`flex items-center gap-1.5 p-1 rounded-lg border transition-all shrink-0 ${
+                                  activeStepImageIndex === idx
+                                    ? 'bg-blue-600/30 border-blue-400 text-white shadow-xs'
+                                    : 'bg-black/30 border-white/10 text-slate-400 hover:text-white hover:border-white/30'
+                                }`}
+                              >
+                                <div className="w-9 h-6 rounded bg-slate-900 overflow-hidden flex items-center justify-center border border-white/10">
+                                  <img src={img.url} alt="" className="w-full h-full object-cover" />
+                                </div>
+                                <span className="text-[10px] font-bold px-1">
+                                  Foto {idx + 1}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Dedicated Open Button right below image */}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenStepImage()}
+                          className="w-full py-2.5 px-4 bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 hover:text-white border border-blue-500/40 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-all shadow-sm active:scale-98"
+                        >
+                          <ZoomIn className="w-4 h-4 text-blue-400" />
+                          <span>Ver Foto em Tamanho Maior (Zoom &amp; Tela Cheia)</span>
+                        </button>
+
+                        {activeImage.caption && (
+                          <p className="text-[11px] text-slate-400 text-center italic px-2">
+                            {activeImage.caption}
+                          </p>
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
-              </div>
+                );
+              })()}
             </div>
           </div>
         )}
@@ -336,6 +429,8 @@ export const POPSlideshowModal: React.FC<POPSlideshowModalProps> = ({
       {slideLightboxImage && (
         <ImageLightboxModal
           image={slideLightboxImage}
+          images={slideLightboxImage.images}
+          currentIndex={slideLightboxImage.currentIndex}
           onClose={() => setSlideLightboxImage(null)}
         />
       )}

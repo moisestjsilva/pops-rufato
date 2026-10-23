@@ -44,11 +44,11 @@ async function main() {
     // Envia arquivo via SCP
     execSync(`scp -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=no "${zipPath}" ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/`, { stdio: 'inherit' });
     
-    // Descompacta e reinicia o serviço Node
-    const restartCmd = `ssh -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} "cd ${REMOTE_DIR} && unzip -o deploy-cloudpanel.zip && fuser -k 3031/tcp || true; sleep 2; nohup ${NODE_BIN} server.js > app.log 2>&1 & sleep 2; cat app.log"`;
+    // Descompacta e reinicia o serviço via PM2
+    const restartCmd = `ssh -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} "export PATH=\\$PATH:/home/pops/.nvm/versions/node/v24.21.0/bin && cd ${REMOTE_DIR} && unzip -o deploy-cloudpanel.zip && (pm2 reload pops-rufato || PORT=3031 pm2 start server.js --name 'pops-rufato') && pm2 save"`;
     execSync(restartCmd, { stdio: 'inherit' });
     
-    console.log('✅ Arquivos descompactados e servidor reiniciado com sucesso!');
+    console.log('✅ Arquivos descompactados e serviço PM2 atualizado com sucesso!');
   } catch (err) {
     console.warn('\n⚠️ Falha na transferência direta SSH/SCP: ' + err.message);
     console.warn('💡 Você pode usar: "git push origin main" para deploy automático pelo GitHub Actions.');

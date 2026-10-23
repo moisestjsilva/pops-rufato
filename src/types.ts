@@ -92,14 +92,21 @@ export interface Employee {
   updated_at: string;
 }
 
+export interface POPStepImage {
+  id: string;
+  url: string;
+  caption?: string;
+}
+
 export interface POPStep {
   id: string;
   step_number: string; // e.g., "5.1", "5.2"
   title: string;
   description: string;
   warning?: string;
-  image_url?: string;
-  image_caption?: string;
+  image_url?: string; // Mantido para compatibilidade retroativa
+  image_caption?: string; // Mantido para compatibilidade retroativa
+  images?: POPStepImage[]; // Múltiplas imagens por passo
 }
 
 export interface POPContent {

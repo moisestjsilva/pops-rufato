@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { POP, POPVersion, Acknowledgement } from '../../types';
 import { formatDate, formatDateTime, getPOPStatusBadge, getRevisionStatus } from '../../utils/helpers';
+import { getStepImages } from '../../utils/imageHelper';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { VersionHistoryModal } from './VersionHistoryModal';
@@ -65,7 +66,13 @@ export const POPViewer: React.FC<POPViewerProps> = ({
   const [showHistory, setShowHistory] = useState(false);
   const [showSignModal, setShowSignModal] = useState(false);
   const [showSlideshow, setShowSlideshow] = useState(false);
-  const [selectedImageModal, setSelectedImageModal] = useState<{ url: string; title: string; caption?: string } | null>(null);
+  const [selectedImageModal, setSelectedImageModal] = useState<{ 
+    url: string; 
+    title: string; 
+    caption?: string;
+    images?: { url: string; title: string; caption?: string }[];
+    currentIndex?: number;
+  } | null>(null);
 
   // Active version to render (defaults to current active version or explicit selected version)
   const activeVersion = selectedVersion || pop.versions?.find(v => v.version_number === pop.current_version) || pop.versions?.[0];
@@ -350,39 +357,68 @@ export const POPViewer: React.FC<POPViewerProps> = ({
                       </div>
                     )}
 
-                    {/* Step Attached Image */}
-                    {step.image_url && (
-                      <div className="ml-0 sm:ml-9 mt-3">
-                        <div className="rounded-xl overflow-hidden border border-slate-300 bg-white max-w-lg shadow-xs">
-                          <div 
-                            className="relative group bg-slate-950/5 flex items-center justify-center p-2 cursor-pointer"
-                            onClick={() => setSelectedImageModal({
-                              url: step.image_url!,
-                              title: `${step.step_number} - ${step.title}`,
-                              caption: step.image_caption
-                            })}
-                          >
-                            <img
-                              src={step.image_url}
-                              alt={step.image_caption || `Ilustração do passo ${step.step_number}`}
-                              className="max-h-72 w-full object-contain rounded-lg transition-transform hover:scale-[1.01]"
-                              loading="eager"
-                              crossOrigin="anonymous"
-                            />
-                            <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/80 text-white text-[10px] px-2 py-1 rounded-md flex items-center gap-1 shadow-xs pointer-events-none">
-                              <Maximize2 className="w-3 h-3" /> Ampliar
-                            </div>
-                          </div>
-                          <div className="p-2.5 bg-slate-50 border-t border-slate-200 text-xs text-slate-700 flex items-start gap-2">
-                            <ImageIcon className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-                            <div className="text-[11px] leading-relaxed">
-                              <span className="font-bold text-slate-900">Figura {step.step_number}: </span>
-                              <span>{step.image_caption || 'Evidência fotográfica / instrução visual do procedimento.'}</span>
-                            </div>
+                    {/* Step Attached Images */}
+                    {(() => {
+                      const stepImages = getStepImages(step);
+                      if (stepImages.length === 0) return null;
+
+                      const lightboxItems = stepImages.map((img, i) => ({
+                        url: img.url,
+                        title: `${step.step_number} - ${step.title}${stepImages.length > 1 ? ` (Foto ${i + 1} de ${stepImages.length})` : ''}`,
+                        caption: img.caption
+                      }));
+
+                      return (
+                        <div className="ml-0 sm:ml-9 mt-3">
+                          <div className={`grid gap-3 ${
+                            stepImages.length === 1 ? 'grid-cols-1 max-w-lg' : 'grid-cols-1 md:grid-cols-2'
+                          }`}>
+                            {stepImages.map((img, imgIdx) => (
+                              <div 
+                                key={img.id || imgIdx} 
+                                className="rounded-xl overflow-hidden border border-slate-300 bg-white shadow-xs flex flex-col justify-between"
+                              >
+                                <div 
+                                  className="relative group bg-slate-950/5 flex items-center justify-center p-2 cursor-pointer h-56 sm:h-64"
+                                  onClick={() => setSelectedImageModal({
+                                    url: img.url,
+                                    title: lightboxItems[imgIdx].title,
+                                    caption: img.caption,
+                                    images: lightboxItems,
+                                    currentIndex: imgIdx
+                                  })}
+                                >
+                                  <img
+                                    src={img.url}
+                                    alt={img.caption || `Ilustração do passo ${step.step_number} - Foto ${imgIdx + 1}`}
+                                    className="max-h-full max-w-full object-contain rounded-lg transition-transform hover:scale-[1.01]"
+                                    loading="eager"
+                                    crossOrigin="anonymous"
+                                  />
+                                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/80 text-white text-[10px] px-2 py-1 rounded-md flex items-center gap-1 shadow-xs pointer-events-none">
+                                    <Maximize2 className="w-3 h-3" /> Ampliar
+                                  </div>
+                                  {stepImages.length > 1 && (
+                                    <div className="absolute top-2 left-2 bg-slate-900/80 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-xs">
+                                      Foto {imgIdx + 1} de {stepImages.length}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="p-2.5 bg-slate-50 border-t border-slate-200 text-xs text-slate-700 flex items-start gap-2">
+                                  <ImageIcon className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                                  <div className="text-[11px] leading-relaxed">
+                                    <span className="font-bold text-slate-900">
+                                      Figura {step.step_number}{stepImages.length > 1 ? `.${imgIdx + 1}` : ''}:{' '}
+                                    </span>
+                                    <span>{img.caption || 'Evidência fotográfica / instrução visual do procedimento.'}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                   </div>
                 ))}
               </div>
@@ -547,6 +583,8 @@ export const POPViewer: React.FC<POPViewerProps> = ({
       {selectedImageModal && (
         <ImageLightboxModal
           image={selectedImageModal}
+          images={selectedImageModal.images}
+          currentIndex={selectedImageModal.currentIndex}
           onClose={() => setSelectedImageModal(null)}
         />
       )}

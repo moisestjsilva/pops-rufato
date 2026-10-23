@@ -7,22 +7,42 @@ import {
   Maximize2, 
   Minimize2, 
   Download,
-  Image as ImageIcon
+  Image as ImageIcon,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
+export interface LightboxImageItem {
+  url: string;
+  title: string;
+  caption?: string;
+}
+
 interface ImageLightboxModalProps {
-  image: {
-    url: string;
-    title: string;
-    caption?: string;
-  };
+  image: LightboxImageItem;
+  images?: LightboxImageItem[];
+  currentIndex?: number;
   onClose: () => void;
 }
 
 export const ImageLightboxModal: React.FC<ImageLightboxModalProps> = ({
   image,
+  images,
+  currentIndex: initialIndex,
   onClose
 }) => {
+  const [activeImageIndex, setActiveImageIndex] = useState<number>(() => {
+    if (initialIndex !== undefined && initialIndex >= 0) return initialIndex;
+    if (images && images.length > 0) {
+      const idx = images.findIndex(img => img.url === image.url);
+      return idx >= 0 ? idx : 0;
+    }
+    return 0;
+  });
+
+  const activeImageList = images && images.length > 0 ? images : [image];
+  const currentImage = activeImageList[activeImageIndex] || image;
+  const hasMultiple = activeImageList.length > 1;
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState<number>(1);
   const [position, setPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -74,6 +94,18 @@ export const ImageLightboxModal: React.FC<ImageLightboxModalProps> = ({
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
+  const handlePrevImage = useCallback(() => {
+    if (!hasMultiple) return;
+    setActiveImageIndex(prev => (prev > 0 ? prev - 1 : activeImageList.length - 1));
+    handleResetZoom();
+  }, [hasMultiple, activeImageList.length]);
+
+  const handleNextImage = useCallback(() => {
+    if (!hasMultiple) return;
+    setActiveImageIndex(prev => (prev < activeImageList.length - 1 ? prev + 1 : 0));
+    handleResetZoom();
+  }, [hasMultiple, activeImageList.length]);
+
   // Keyboard navigation
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -88,8 +120,12 @@ export const ImageLightboxModal: React.FC<ImageLightboxModalProps> = ({
       handleZoomOut();
     } else if (e.key === '0') {
       handleResetZoom();
+    } else if (e.key === 'ArrowLeft') {
+      handlePrevImage();
+    } else if (e.key === 'ArrowRight') {
+      handleNextImage();
     }
-  }, [scale, onClose]);
+  }, [scale, onClose, handlePrevImage, handleNextImage]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -135,8 +171,8 @@ export const ImageLightboxModal: React.FC<ImageLightboxModalProps> = ({
 
   const handleDownload = () => {
     const a = document.createElement('a');
-    a.href = image.url;
-    a.download = `${image.title.replace(/[^a-zA-Z0-9_-]/g, '_')}.png`;
+    a.href = currentImage.url;
+    a.download = `${(currentImage.title || 'imagem').replace(/[^a-zA-Z0-9_-]/g, '_')}.png`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -154,12 +190,19 @@ export const ImageLightboxModal: React.FC<ImageLightboxModalProps> = ({
         <div className="flex items-center gap-2.5 min-w-0 text-white">
           <ImageIcon className="w-4 h-4 text-blue-400 shrink-0" />
           <div className="min-w-0">
-            <h3 className="font-semibold text-xs sm:text-sm truncate">
-              {image.title}
-            </h3>
-            {image.caption && (
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-xs sm:text-sm truncate">
+                {currentImage.title}
+              </h3>
+              {hasMultiple && (
+                <span className="px-2 py-0.5 text-[10px] font-bold bg-blue-600/60 text-blue-200 border border-blue-400/40 rounded-full shrink-0">
+                  Foto {activeImageIndex + 1} de {activeImageList.length}
+                </span>
+              )}
+            </div>
+            {currentImage.caption && (
               <p className="text-[11px] text-slate-400 truncate hidden sm:block">
-                {image.caption}
+                {currentImage.caption}
               </p>
             )}
           </div>
@@ -167,6 +210,28 @@ export const ImageLightboxModal: React.FC<ImageLightboxModalProps> = ({
 
         {/* Toolbar Controls */}
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          {hasMultiple && (
+            <div className="flex items-center bg-white/10 rounded-lg p-0.5 border border-white/10 mr-1 sm:mr-2">
+              <button
+                onClick={handlePrevImage}
+                className="p-1.5 text-slate-300 hover:text-white hover:bg-white/10 rounded-md transition-colors"
+                title="Foto Anterior (Seta Esquerda)"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-[11px] font-mono px-2 text-slate-300 text-center">
+                {activeImageIndex + 1}/{activeImageList.length}
+              </span>
+              <button
+                onClick={handleNextImage}
+                className="p-1.5 text-slate-300 hover:text-white hover:bg-white/10 rounded-md transition-colors"
+                title="Próxima Foto (Seta Direita)"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
           <div className="flex items-center bg-white/10 rounded-lg p-0.5 border border-white/10">
             <button
               onClick={handleZoomOut}
@@ -231,6 +296,28 @@ export const ImageLightboxModal: React.FC<ImageLightboxModalProps> = ({
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
       >
+        {/* Navigation Floating Buttons for Multiple Images */}
+        {hasMultiple && (
+          <>
+            <button
+              type="button"
+              onClick={handlePrevImage}
+              className="absolute left-4 top-1/2 -translate-y-1/2 z-30 w-11 h-11 rounded-full bg-slate-900/80 hover:bg-blue-600 text-white flex items-center justify-center backdrop-blur-sm border border-white/20 shadow-xl transition-all hover:scale-110 active:scale-95"
+              title="Foto anterior (Seta esquerda)"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+            <button
+              type="button"
+              onClick={handleNextImage}
+              className="absolute right-4 top-1/2 -translate-y-1/2 z-30 w-11 h-11 rounded-full bg-slate-900/80 hover:bg-blue-600 text-white flex items-center justify-center backdrop-blur-sm border border-white/20 shadow-xl transition-all hover:scale-110 active:scale-95"
+              title="Próxima foto (Seta direita)"
+            >
+              <ChevronRight className="w-6 h-6" />
+            </button>
+          </>
+        )}
+
         <div 
           className="transition-transform duration-75 ease-out flex items-center justify-center"
           style={{
@@ -240,8 +327,9 @@ export const ImageLightboxModal: React.FC<ImageLightboxModalProps> = ({
           onDoubleClick={handleDoubleClick}
         >
           <img
-            src={image.url}
-            alt={image.title}
+            key={currentImage.url}
+            src={currentImage.url}
+            alt={currentImage.title}
             className="max-h-[80vh] max-w-[90vw] object-contain rounded-md shadow-2xl pointer-events-none select-none"
             crossOrigin="anonymous"
             draggable={false}
@@ -251,6 +339,12 @@ export const ImageLightboxModal: React.FC<ImageLightboxModalProps> = ({
         {/* Floating Zoom Hint Pill */}
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-slate-900/80 backdrop-blur-xs text-slate-300 text-[11px] px-3 py-1.5 rounded-full border border-white/10 shadow-lg pointer-events-none flex items-center gap-2">
           <span>Role o scroll ou use <strong>+</strong> / <strong>-</strong> para zoom</span>
+          {hasMultiple && (
+            <>
+              <span>&bull;</span>
+              <span>Use <strong>&larr;</strong> e <strong>&rarr;</strong> para alternar fotos</span>
+            </>
+          )}
           <span>&bull;</span>
           <span>Duplo clique para ampliar</span>
           <span>&bull;</span>
@@ -259,10 +353,10 @@ export const ImageLightboxModal: React.FC<ImageLightboxModalProps> = ({
       </div>
 
       {/* Caption Footer if exists */}
-      {image.caption && (
+      {currentImage.caption && (
         <div className="p-3 bg-slate-950/80 border-t border-white/10 text-center text-xs text-slate-300 shrink-0">
           <span className="font-semibold text-white">Legenda: </span>
-          <span>{image.caption}</span>
+          <span>{currentImage.caption}</span>
         </div>
       )}
     </div>

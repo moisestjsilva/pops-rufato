@@ -1,8 +1,24 @@
+import { POPStep, POPStepImage } from '../types';
+
 /**
- * Helper utility for handling and optimizing POP Step images.
- * Produces crisp, base64-encoded Data URLs suitable for instant rendering,
- * storage within the POP document structure, and flawless html2canvas PDF exports.
+ * Extracts and normalizes the array of images for a POP step,
+ * providing seamless backwards compatibility with older single-image schemas.
  */
+export function getStepImages(step: POPStep): POPStepImage[] {
+  if (Array.isArray(step.images) && step.images.length > 0) {
+    return step.images;
+  }
+  if (step.image_url) {
+    return [
+      {
+        id: 'legacy-img-1',
+        url: step.image_url,
+        caption: step.image_caption || ''
+      }
+    ];
+  }
+  return [];
+}
 
 export function fileToOptimizedDataUrl(file: File, maxDim: number = 1200, quality: number = 0.85): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -89,7 +105,7 @@ export const PRESET_STEP_IMAGES = [
     id: 'barcode_labeling',
     label: 'Etiquetagem & Paletização',
     caption: 'Fixação de etiqueta de identificação e padrão de empilhamento no palete',
-    dataUrl: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 340" width="600" height="340"><rect width="600" height="340" fill="%230f172a"/><rect x="20" y="20" width="560" height="300" rx="12" fill="%231e293b" stroke="%23334155" stroke-width="2"/><rect x="190" y="60" width="220" height="130" rx="8" fill="%23ffffff"/><line x1="220" y1="85" x2="220" y2="135" stroke="%23000" stroke-width="4"/><line x1="230" y1="85" x2="230" y2="135" stroke="%23000" stroke-width="2"/><line x1="240" y1="85" x2="240" y2="135" stroke="%23000" stroke-width="6"/><line x1="255" y1="85" x2="255" y2="135" stroke="%23000" stroke-width="2"/><line x1="265" y1="85" x2="265" y2="135" stroke="%23000" stroke-width="5"/><line x1="280" y1="85" x2="280" y2="135" stroke="%23000" stroke-width="3"/><line x1="295" y1="85" x2="295" y2="135" stroke="%23000" stroke-width="6"/><line x1="315" y1="85" x2="315" y2="135" stroke="%23000" stroke-width="4"/><line x1="330" y1="85" x2="330" y2="135" stroke="%23000" stroke-width="2"/><line x1="345" y1="85" x2="345" y2="135" stroke="%23000" stroke-width="5"/><line x1="365" y1="85" x2="365" y2="135" stroke="%23000" stroke-width="3"/><line x1="380" y1="85" x2="380" y2="135" stroke="%23000" stroke-width="4"/><text x="300" y="165" fill="%231e293b" font-family="monospace" font-size="12" font-weight="bold" text-anchor="middle">LOTE-2026-RUFATO-091</text><text x="300" y="240" fill="%23f8fafc" font-family="sans-serif" font-weight="bold" font-size="18" text-anchor="middle">PADRÃO DE ETIQUETAGEM & RASTREABILIDADE</text><text x="300" y="268" fill="%2394a3b8" font-family="sans-serif" font-size="13" text-anchor="middle">Etiqueta visível no canto superior direito do fardo</text></svg>`
+    dataUrl: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 340" width="600" height="340"><rect width="600" height="340" fill="%230f172a"/><rect x="20" y="20" width="560" height="300" rx="12" fill="%231e293b" stroke="%23334155" stroke-width="2"/><rect x="190" y="60" width="220" height="130" rx="8" fill="%23ffffff"/><line x1="220" y1="85" x2="220" y2="135" stroke="%23000" stroke-width="4"/><line x1="230" y1="85" x2="230" y2="135" stroke="%23000" stroke-width="2"/><line x1="240" y1="85" x2="240" y2="135" stroke="%23000" stroke-width="6"/><line x1="255" y1="85" x2="255" y2="135" stroke="%23000" stroke-width="2"/><line x1="265" y1="85" x2="265" y2="135" stroke="%23000" stroke-width="5"/><line x1="280" y1="85" x2="280" y2="135" stroke="%23000" stroke-width="3"/><line x1="295" y1="85" x2="295" y2="135" stroke="%23000" stroke-width="6"/><line x1="315" y1="85" x2="315" y2="135" stroke="%23000" stroke-width="4"/><line x1="330" y1="85" x2="330" y2="135" stroke="%23000" stroke-width="2"/><line x1="345" y1="85" x2="345" y2="135" stroke="%23000" stroke-width="5"/><line x1="365" y1="85" x2="365" y2="135" stroke="%23000" stroke-width="3"/><line x1="380" y1="85" x2="380" y2="135" stroke="%23000" stroke-width="4"/><text x="300" y="165" fill="%231e293b" font-family="monospace" font-size="12" font-weight="bold" text-anchor="middle">LOTE-2026-RUFATO-091</text><text x="300" y="240" fill="%23f8fafc" font-family="sans-serif" font-weight="bold" font-size="18" text-anchor="middle">PADRÃO DE ETIQUETAGEM %26 RASTREABILIDADE</text><text x="300" y="268" fill="%2394a3b8" font-family="sans-serif" font-size="13" text-anchor="middle">Etiqueta visível no canto superior direito do fardo</text></svg>`
   },
   {
     id: 'ppe_checklist',
