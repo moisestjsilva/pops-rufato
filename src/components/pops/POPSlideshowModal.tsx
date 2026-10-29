@@ -10,7 +10,8 @@ import {
   ZoomIn,
   CheckCircle2,
   Layers,
-  Expand
+  Expand,
+  ExternalLink
 } from 'lucide-react';
 import { POP, POPVersion, POPStep } from '../../types';
 import { getStepImages } from '../../utils/imageHelper';
@@ -138,6 +139,32 @@ export const POPSlideshowModal: React.FC<POPSlideshowModalProps> = ({
 
   const progressPercent = totalSteps > 0 ? ((currentIndex + 1) / totalSteps) * 100 : 0;
 
+  // Render text with clickable links for URLs
+  const renderFormattedText = (text: string) => {
+    if (!text) return null;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+
+    return parts.map((part, index) => {
+      if (part.match(urlRegex)) {
+        return (
+          <a
+            key={index}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-400 hover:text-blue-300 underline font-medium break-all inline-flex items-center gap-1 my-0.5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {part}
+            <ExternalLink className="w-3.5 h-3.5 inline shrink-0" />
+          </a>
+        );
+      }
+      return part;
+    });
+  };
+
   return (
     <div 
       ref={containerRef}
@@ -198,9 +225,9 @@ export const POPSlideshowModal: React.FC<POPSlideshowModalProps> = ({
       </header>
 
       {/* Main Slide Workspace */}
-      <main className="flex-1 flex items-center justify-center p-4 sm:p-6 md:p-10 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto p-3 sm:p-6 md:p-8 flex flex-col">
         {totalSteps === 0 ? (
-          <div className="text-center p-8 bg-white/5 rounded-2xl border border-white/10 max-w-md space-y-3">
+          <div className="text-center p-8 bg-white/5 rounded-2xl border border-white/10 max-w-md space-y-3 mx-auto my-auto">
             <Layers className="w-12 h-12 text-slate-500 mx-auto" />
             <h3 className="font-bold text-lg text-white">Nenhum Passo Cadastrado</h3>
             <p className="text-xs text-slate-400 leading-relaxed">
@@ -214,11 +241,11 @@ export const POPSlideshowModal: React.FC<POPSlideshowModalProps> = ({
             </button>
           </div>
         ) : (
-          <div className="w-full max-w-6xl mx-auto flex flex-col justify-center animate-in fade-in zoom-in-95 duration-200">
+          <div className="w-full max-w-6xl mx-auto my-auto flex flex-col py-2 sm:py-4 animate-in fade-in zoom-in-95 duration-200">
             {/* Step Slide Card */}
-            <div className="bg-slate-900/90 border border-white/10 rounded-2xl p-6 sm:p-8 md:p-10 shadow-2xl space-y-6">
+            <div className="bg-slate-900/95 border border-white/10 rounded-2xl p-5 sm:p-7 md:p-8 shadow-2xl space-y-5">
               {/* Step Header Indicator */}
-              <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4">
+              <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-3">
                 <div className="flex items-center gap-3">
                   <span className="px-3 py-1 bg-blue-600 text-white font-extrabold text-xs sm:text-sm rounded-lg shadow-xs">
                     ETAPA {currentStep.step_number || currentIndex + 1}
@@ -240,12 +267,12 @@ export const POPSlideshowModal: React.FC<POPSlideshowModalProps> = ({
                   <div className={`grid gap-6 sm:gap-8 items-start ${hasImages ? 'lg:grid-cols-12' : 'grid-cols-1'}`}>
                     {/* Text Content */}
                     <div className={`${hasImages ? 'lg:col-span-6' : 'max-w-3xl'} space-y-4`}>
-                      <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-white tracking-tight leading-snug">
-                        {currentStep.title}
+                      <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-white tracking-tight leading-snug break-words">
+                        {currentStep.title || `Passo ${currentStep.step_number || currentIndex + 1}`}
                       </h2>
 
-                      <div className="p-4 sm:p-5 bg-white/5 rounded-xl border border-white/10 text-slate-200 text-sm sm:text-base leading-relaxed whitespace-pre-line font-normal">
-                        {currentStep.description}
+                      <div className="p-4 sm:p-5 bg-white/5 rounded-xl border border-white/10 text-slate-200 text-sm sm:text-base leading-relaxed whitespace-pre-line font-normal break-words max-h-[50vh] sm:max-h-[55vh] overflow-y-auto select-text pr-2">
+                        {renderFormattedText(currentStep.description)}
                       </div>
 
                       {/* Safety Alert Warning */}
