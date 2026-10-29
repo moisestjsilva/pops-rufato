@@ -155,7 +155,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => saveStorage('departments', departments), [departments]);
   useEffect(() => saveStorage('positions', positions), [positions]);
   useEffect(() => saveStorage('employees', employees), [employees]);
-  useEffect(() => saveStorage('pops', pops), [pops]);
+  useEffect(() => {
+    try {
+      const lightPOPs = pops.map(p => ({
+        ...p,
+        versions: (p.versions || []).map(v => {
+          if (!v.content) return v;
+          const c = typeof v.content === 'string' ? JSON.parse(v.content) : v.content;
+          return {
+            ...v,
+            content: {
+              ...c,
+              steps: (c.steps || []).map((s: any) => {
+                const { image_url, ...rest } = s;
+                return rest;
+              })
+            }
+          };
+        })
+      }));
+      saveStorage('pops', lightPOPs);
+    } catch (e) {
+      console.warn('[Storage] Falha ao salvar cache leve de POPs:', e);
+    }
+  }, [pops]);
   useEffect(() => saveStorage('acknowledgements', acknowledgements), [acknowledgements]);
   useEffect(() => saveStorage('signatures', signatures), [signatures]);
   useEffect(() => saveStorage('approvals', approvals), [approvals]);
@@ -176,7 +199,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             apiClient.getDepartments().catch(() => null),
             apiClient.getPositions().catch(() => null),
             apiClient.getEmployees().catch(() => null),
-            apiClient.getPOPs().catch(() => null),
+            apiClient.getPOPs().catch((e) => { console.error('[POP CONTROL] Erro ao buscar POPs:', e); return null; }),
             apiClient.getAcknowledgements().catch(() => null),
             apiClient.getAuditLogs().catch(() => null)
           ]);
@@ -185,7 +208,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (dbDepts && Array.isArray(dbDepts) && dbDepts.length > 0) setDepartments(dbDepts);
           if (dbPositions && Array.isArray(dbPositions) && dbPositions.length > 0) setPositions(dbPositions);
           if (dbEmployees && Array.isArray(dbEmployees) && dbEmployees.length > 0) setEmployees(dbEmployees);
-          if (dbPOPs && Array.isArray(dbPOPs) && dbPOPs.length > 0) setPops(dbPOPs);
+          if (dbPOPs && Array.isArray(dbPOPs) && dbPOPs.length > 0) {
+            console.log(`[POP CONTROL] Sincronizados com sucesso ${dbPOPs.length} POPs do banco MySQL.`);
+            setPops(dbPOPs);
+          }
           if (dbAcks && Array.isArray(dbAcks) && dbAcks.length > 0) setAcknowledgements(dbAcks);
           if (dbAudit && Array.isArray(dbAudit) && dbAudit.length > 0) setAuditLogs(dbAudit);
         }

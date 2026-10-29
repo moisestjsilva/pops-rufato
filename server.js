@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -14,9 +15,10 @@ dotenv.config({ path: path.join(__dirname, '.env') });
 const app = express();
 const PORT = process.env.PORT || 3031;
 
+app.use(compression());
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
 // Database Connection Pool
 const dbConfig = {
@@ -28,7 +30,8 @@ const dbConfig = {
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  charset: 'utf8mb4'
+  charset: 'utf8mb4',
+  maxAllowedPacket: 268435456
 };
 
 const pool = mysql.createPool(dbConfig);
@@ -66,6 +69,39 @@ app.get('/api/health', async (req, res) => {
         database: dbConfig.database
       }
     });
+  }
+});
+
+// System Database Counts and Force Sync
+app.get('/api/system/db-counts', async (req, res) => {
+  try {
+    const [[emp]] = await pool.query('SELECT COUNT(*) as total FROM employees');
+    const [[dept]] = await pool.query('SELECT COUNT(*) as total FROM departments');
+    const [[pos]] = await pool.query('SELECT COUNT(*) as total FROM positions');
+    const [[pops]] = await pool.query('SELECT COUNT(*) as total FROM pops');
+    const [[vers]] = await pool.query('SELECT COUNT(*) as total FROM pop_versions');
+    const [popList] = await pool.query('SELECT id, code, title, department_id, status FROM pops ORDER BY code ASC');
+    res.json({
+      counts: {
+        employees: emp.total,
+        departments: dept.total,
+        positions: pos.total,
+        pops: pops.total,
+        pop_versions: vers.total
+      },
+      pops: popList
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/system/force-sync', async (req, res) => {
+  try {
+    const result = await autoRestoreDatabaseIfNeeded(pool, true);
+    res.json({ success: true, result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

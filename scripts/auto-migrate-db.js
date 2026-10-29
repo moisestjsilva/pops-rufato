@@ -19,6 +19,7 @@ async function upsertRow(conn, tableName, row) {
 
   const values = keys.map(k => {
     const val = row[k];
+    if (val === undefined) return null;
     if (val !== null && typeof val === 'object' && !(val instanceof Date) && !Buffer.isBuffer(val)) {
       return JSON.stringify(val);
     }
@@ -32,13 +33,13 @@ async function upsertRow(conn, tableName, row) {
   await conn.query(sql, values);
 }
 
-export async function autoRestoreDatabaseIfNeeded(pool) {
+export async function autoRestoreDatabaseIfNeeded(pool, force = false) {
   const migrationDir = path.join(__dirname, '..', 'database', 'migration');
   const corePath = path.join(migrationDir, 'core.json.gz');
 
   if (!fs.existsSync(corePath)) {
     console.log('[MIGRAÇÃO] Pacote database/migration/core.json.gz não encontrado. Pulando auto-restauração.');
-    return;
+    return { status: 'skipped', reason: 'core.json.gz not found' };
   }
 
   // Aguarda o banco MySQL ficar pronto (útil no primeiro boot do Coolify / Docker Compose)
@@ -56,7 +57,7 @@ export async function autoRestoreDatabaseIfNeeded(pool) {
 
   if (!connected) {
     console.error('[MIGRAÇÃO] Não foi possível conectar ao MySQL após 20 tentativas.');
-    return;
+    return { status: 'error', reason: 'MySQL connection timeout' };
   }
 
   // Tenta ajustar max_allowed_packet para suportar POPs grandes com fotos em Base64
@@ -81,7 +82,11 @@ export async function autoRestoreDatabaseIfNeeded(pool) {
         /^CREATE TABLE/i,
         'CREATE TABLE IF NOT EXISTS'
       );
-      await conn.query(safeCreateSql);
+      try {
+        await conn.query(safeCreateSql);
+      } catch (tableErr) {
+        console.warn(`[MIGRAÇÃO] Aviso ao criar tabela ${tableName}:`, tableErr.message);
+      }
     }
 
     // 2. Verificar se o banco já possui todos os POPs e colaboradores migrados
@@ -93,20 +98,31 @@ export async function autoRestoreDatabaseIfNeeded(pool) {
     const expectedPops = (coreData.tables?.pops || []).length;
 
     if (
+      !force &&
       empCountRow.total >= expectedEmps &&
       popCountRow.total >= expectedPops &&
       verCountRow.total >= expectedPops
     ) {
       console.log(
-        `[MIGRAÇÃO] Banco de dados já está populado e íntegro (${empCountRow.total} logins, ${popCountRow.total} POPs, ${verCountRow.total} versões).`
+        `[MIGRAÇÃO] Banco de dados já está populado e 100% íntegro (${empCountRow.total} logins, ${popCountRow.total} POPs, ${verCountRow.total} versões).`
       );
       await conn.query('SET FOREIGN_KEY_CHECKS = 1');
-      return;
+      return {
+        status: 'already_populated',
+        counts: {
+          employees: empCountRow.total,
+          pops: popCountRow.total,
+          versions: verCountRow.total
+        }
+      };
     }
 
-    console.log('[MIGRAÇÃO] Banco novo/incompleto detectado! Iniciando restauração automática de 100% dos dados de produção...');
+    console.log(
+      `[MIGRAÇÃO] Sincronização necessária! Estado atual: ${empCountRow.total}/${expectedEmps} colaboradores, ${popCountRow.total}/${expectedPops} POPs, ${verCountRow.total}/${expectedPops} versões.`
+    );
+    console.log('[MIGRAÇÃO] Iniciando sincronização e restauração de 100% dos dados de produção...');
 
-    // 3. Restaurar tabelas principais (empresas, setores, cargos, logins/senhas, POPs, atribuições, logs)
+    // 3. Restaurar tabelas principais
     const tableOrder = [
       'companies',
       'departments',
@@ -125,11 +141,17 @@ export async function autoRestoreDatabaseIfNeeded(pool) {
 
     for (const tableName of tableOrder) {
       const rows = coreData.tables?.[tableName] || [];
+      let successCount = 0;
       for (const row of rows) {
-        await upsertRow(conn, tableName, row);
+        try {
+          await upsertRow(conn, tableName, row);
+          successCount++;
+        } catch (rowErr) {
+          console.error(`[MIGRAÇÃO] Falha ao inserir linha em ${tableName} [${row.id || row.code}]:`, rowErr.message);
+        }
       }
       if (rows.length > 0) {
-        console.log(`[MIGRAÇÃO] Restaurada tabela ${tableName}: ${rows.length} registros.`);
+        console.log(`[MIGRAÇÃO] Tabela ${tableName}: ${successCount}/${rows.length} registros inseridos/atualizados.`);
       }
     }
 
@@ -147,24 +169,44 @@ export async function autoRestoreDatabaseIfNeeded(pool) {
     for (const file of files) {
       const chunkPath = path.join(migrationDir, file);
       const versions = JSON.parse(zlib.gunzipSync(fs.readFileSync(chunkPath)).toString('utf-8'));
+      let chunkSuccess = 0;
       for (const verRow of versions) {
-        await upsertRow(conn, 'pop_versions', verRow);
-        totalVersionsRestored++;
+        try {
+          await upsertRow(conn, 'pop_versions', verRow);
+          totalVersionsRestored++;
+          chunkSuccess++;
+        } catch (verErr) {
+          console.error(`[MIGRAÇÃO] Falha ao inserir versão [${verRow.id}] do POP ${verRow.pop_id}:`, verErr.message);
+        }
       }
-      console.log(`[MIGRAÇÃO] Pacote ${file} restaurado (${versions.length} versões de POPs).`);
+      console.log(`[MIGRAÇÃO] Pacote ${file}: ${chunkSuccess}/${versions.length} versões restauradas.`);
     }
 
     await conn.query('SET FOREIGN_KEY_CHECKS = 1');
+
+    const [[finalEmpCount]] = await conn.query('SELECT COUNT(*) as total FROM `employees`');
+    const [[finalPopCount]] = await conn.query('SELECT COUNT(*) as total FROM `pops`');
+    const [[finalVerCount]] = await conn.query('SELECT COUNT(*) as total FROM `pop_versions`');
+
     console.log(
-      `✅ [MIGRAÇÃO CONCLUÍDA] 100% da estrutura, ${expectedEmps} logins/usuários, ${expectedPops} POPs e ${totalVersionsRestored} versões com imagens restaurados com sucesso!`
+      `✅ [MIGRAÇÃO CONCLUÍDA] Status no banco: ${finalEmpCount.total} logins/usuários, ${finalPopCount.total} POPs e ${finalVerCount.total} versões de POPs restaurados com sucesso!`
     );
+
+    return {
+      status: 'completed',
+      counts: {
+        employees: finalEmpCount.total,
+        pops: finalPopCount.total,
+        versions: finalVerCount.total
+      }
+    };
   } catch (err) {
-    console.error('❌ [MIGRAÇÃO] Erro durante restauração automática:', err.message);
+    console.error('❌ [MIGRAÇÃO] Erro crítico durante restauração automática:', err.message);
     try {
       await conn.query('SET FOREIGN_KEY_CHECKS = 1');
     } catch (e) {}
+    return { status: 'error', error: err.message };
   } finally {
     conn.release();
   }
 }
-
