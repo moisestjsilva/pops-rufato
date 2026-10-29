@@ -1,0 +1,49 @@
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    command: >
+      --max-allowed-packet=256M
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-RufatoRoot2026!}
+      MYSQL_DATABASE: ${DB_NAME:-pops}
+      MYSQL_USER: ${DB_USER:-pops}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-Modificar1*}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "${PORT:-3031}:3031"
+    environment:
+      NODE_ENV: production
+      PORT: 3031
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: ${DB_NAME:-pops}
+      DB_USER: ${DB_USER:-pops}
+      DB_PASSWORD: ${DB_PASSWORD:-Modificar1*}
+      APP_URL: ${APP_URL:-https://pops.moveisrufato.com.br}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3031/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mysql_data:

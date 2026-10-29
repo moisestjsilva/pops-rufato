@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import mysql from 'mysql2/promise';
+import { autoRestoreDatabaseIfNeeded } from './scripts/auto-migrate-db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -39,7 +40,20 @@ pool.query('ALTER TABLE pop_versions MODIFY COLUMN content LONGTEXT NOT NULL').c
 app.get('/api/health', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT 1 as connected');
-    res.json({ status: 'ok', database: 'connected', timestamp: new Date().toISOString() });
+    let counts = {};
+    try {
+      const [[emp]] = await pool.query('SELECT COUNT(*) as total FROM employees');
+      const [[dept]] = await pool.query('SELECT COUNT(*) as total FROM departments');
+      const [[pops]] = await pool.query('SELECT COUNT(*) as total FROM pops');
+      const [[vers]] = await pool.query('SELECT COUNT(*) as total FROM pop_versions');
+      counts = {
+        employees: emp.total,
+        departments: dept.total,
+        pops: pops.total,
+        pop_versions: vers.total
+      };
+    } catch (e) {}
+    res.json({ status: 'ok', database: 'connected', counts, timestamp: new Date().toISOString() });
   } catch (error) {
     res.status(503).json({ 
       status: 'error', 
@@ -1093,5 +1107,6 @@ async function ensureRBACSchema() {
 app.listen(PORT, '0.0.0.0', async () => {
   console.log(`[POP CONTROL] Servidor Node.js rodando na porta ${PORT}`);
   console.log(`[POP CONTROL] Banco configurado em ${dbConfig.host}:${dbConfig.port}/${dbConfig.database}`);
+  await autoRestoreDatabaseIfNeeded(pool);
   await ensureRBACSchema();
 });

@@ -7,3 +7,5 @@ coverage/
 .env*
 !.env.example
 *.zip
+database/pops_prod_backup.sql.gz
+deploy-cloudpanel.tar.gz

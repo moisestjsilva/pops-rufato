@@ -1,0 +1,10 @@
+node_modules
+dist
+.git
+.github
+*.zip
+*.tar.gz
+*.log
+.env
+database/*.sql.gz
+database/backup_*.sql
