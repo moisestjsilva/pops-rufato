@@ -93,6 +93,7 @@ export const POPEditCreateForm: React.FC<POPEditCreateFormProps> = ({
   const filteredPositions = positions.filter(p => p.department_id === departmentId);
 
   const [uploadingStepId, setUploadingStepId] = useState<string | null>(null);
+  const [draggingStepId, setDraggingStepId] = useState<string | null>(null);
   const [urlInputStepId, setUrlInputStepId] = useState<string | null>(null);
   const [tempUrl, setTempUrl] = useState('');
 
@@ -167,6 +168,46 @@ export const POPEditCreateForm: React.FC<POPEditCreateFormProps> = ({
 
   const handleRemoveAttachment = (attId: string) => {
     setAttachments(prev => prev.filter(a => a.id !== attId));
+  };
+
+  
+  const handleStepDragOver = (e: React.DragEvent, stepId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (draggingStepId !== stepId) setDraggingStepId(stepId);
+  };
+
+  const handleStepDragLeave = (e: React.DragEvent, stepId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    if (draggingStepId === stepId) setDraggingStepId(null);
+  };
+
+  const handleStepDrop = (e: React.DragEvent, stepId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDraggingStepId(null);
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+    if (files.length > 0) {
+      handleImageFilesUpload(stepId, files);
+    }
+  };
+
+  const handleStepPaste = (e: React.ClipboardEvent, stepId: string) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const imageFiles: File[] = [];
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        const file = items[i].getAsFile();
+        if (file) imageFiles.push(file);
+      }
+    }
+    if (imageFiles.length > 0) {
+      e.preventDefault();
+      handleImageFilesUpload(stepId, imageFiles);
+    }
   };
 
   const [previewImageModal, setPreviewImageModal] = useState<{ url: string; title: string; caption?: string } | null>(null);
@@ -640,8 +681,28 @@ export const POPEditCreateForm: React.FC<POPEditCreateFormProps> = ({
           </div>
 
           <div className="space-y-3">
-            {steps.map((step, idx) => (
-              <div key={step.id} className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+            {steps.map((step, idx) => {
+              const isStepDragging = draggingStepId === step.id;
+              return (
+              <div 
+                key={step.id} 
+                onDragOver={(e) => handleStepDragOver(e, step.id)} 
+                onDragLeave={(e) => handleStepDragLeave(e, step.id)} 
+                onDrop={(e) => handleStepDrop(e, step.id)} 
+                onPaste={(e) => handleStepPaste(e, step.id)} 
+                tabIndex={0} 
+                className={`p-3.5 rounded-xl border transition-all duration-150 space-y-2.5 relative outline-none ${
+                  isStepDragging 
+                    ? "bg-blue-50/95 border-2 border-dashed border-blue-500 shadow-md ring-2 ring-blue-300" 
+                    : "bg-slate-50 border-slate-200 hover:border-slate-300"
+                }`}
+              >
+                {isStepDragging && (
+                  <div className="p-2.5 rounded-lg bg-blue-600 text-white text-xs font-bold text-center flex items-center justify-center gap-2 animate-pulse shadow-sm pointer-events-none">
+                    <Upload className="w-4 h-4" />
+                    Solte a foto aqui para salvar no Passo {step.step_number || idx + 1}!
+                  </div>
+                )}
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 flex-1">
                     <div className="flex flex-col gap-0.5">
@@ -719,14 +780,18 @@ export const POPEditCreateForm: React.FC<POPEditCreateFormProps> = ({
                           {hasImages ? (
                             <ImageIcon className="w-4 h-4 text-blue-600 shrink-0" />
                           ) : (
-                            <Camera className="w-4 h-4 text-slate-500 shrink-0" />
+                            <Camera className="w-4 h-4 text-blue-600 shrink-0" />
                           )}
                           <span className="text-xs font-bold text-slate-700">
-                            {hasImages ? 'Fotos e Esquemas deste Passo:' : 'Anexar Fotos ou Esquema ao Passo:'}
+                            {hasImages ? 'Fotos e Esquemas deste Passo:' : 'Fotos ou Esquemas deste Passo:'}
                           </span>
-                          {hasImages && (
+                          {hasImages ? (
                             <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 text-blue-800 border border-blue-200">
                               {stepImages.length} {stepImages.length === 1 ? 'imagem anexada' : 'imagens anexadas'}
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                              Arraste ou cole com Ctrl+V
                             </span>
                           )}
                         </div>
@@ -902,7 +967,8 @@ export const POPEditCreateForm: React.FC<POPEditCreateFormProps> = ({
                   );
                 })()}
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
