@@ -57,3 +57,4 @@ Se você preferir criar o banco MySQL separado na aba **Databases** do Coolify e
    }
    ```
 3. Basta apontar o registro **Tipo A** de `pops.moveisrufato.com.br` no seu provedor de DNS para o **IP da nova VPS com Coolify** — o Coolify gerará o certificado SSL (HTTPS) automaticamente.
+

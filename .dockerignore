@@ -8,3 +8,4 @@ dist
 .env
 database/*.sql.gz
 database/backup_*.sql
+
