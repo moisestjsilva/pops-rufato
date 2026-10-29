@@ -231,14 +231,14 @@ export const POPViewer: React.FC<POPViewerProps> = ({
         {/* Document Header Table Banner */}
         <div className="border-2 border-slate-800 rounded-xl overflow-hidden grid grid-cols-1 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x border-slate-800 text-xs">
           {/* Logo Box */}
-          <div className="p-4 bg-slate-50 flex flex-col items-center justify-center text-center">
-            <div className="w-10 h-10 bg-blue-900 text-white font-black rounded-lg flex items-center justify-center text-xl mb-1">
-              R
-            </div>
-            <span className="font-extrabold text-slate-900 text-xs">
-              RUFATO MÓVEIS
-            </span>
-            <span className="text-[9px] text-slate-500">Gestão da Qualidade</span>
+          <div className="p-3 bg-white flex flex-col items-center justify-center text-center">
+            <img 
+              src="/logo-rufato.png" 
+              alt="Rufato Móveis" 
+              className="max-h-12 w-auto object-contain mx-auto"
+              crossOrigin="anonymous"
+            />
+            <span className="text-[9px] font-semibold text-slate-500 mt-1">Gestão da Qualidade</span>
           </div>
 
           {/* Title Box */}

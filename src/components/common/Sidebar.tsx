@@ -85,8 +85,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Brand Header */}
       <div className="h-16 px-4 border-b border-slate-200/80 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-slate-900 text-white rounded-lg flex items-center justify-center font-bold text-sm shadow-2xs">
-            P
+          <div className="h-8 flex items-center justify-center">
+            <img src="/logo-rufato.png" alt="Rufato" className="h-7 w-auto object-contain" />
           </div>
           <div>
             <div className="font-bold text-slate-900 text-sm tracking-tight leading-none">
