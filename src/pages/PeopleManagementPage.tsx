@@ -103,25 +103,27 @@ export const PeopleManagementPage: React.FC<PeopleManagementPageProps> = ({ init
     e.preventDefault();
     if (editingEmp) {
       updateEmployee(editingEmp.id, {
-        full_name: empName,
-        cpf: empCpf,
-        registration_number: empReg,
-        email: empEmail,
-        phone: empPhone,
+        company_id: editingEmp.company_id || companies[0]?.id || 'comp-1',
+        full_name: empName.trim(),
+        cpf: empCpf.trim(),
+        registration_number: empReg.trim(),
+        email: empEmail.trim(),
+        phone: empPhone.trim(),
         department_id: empDeptId,
         position_id: empPosId,
-        role: empRole
+        role: empRole,
+        status: editingEmp.status || 'active'
       });
     } else {
       addEmployee({
-        company_id: companies[0]?.id || '',
+        company_id: companies[0]?.id || 'comp-1',
         department_id: empDeptId || departments[0]?.id || '',
         position_id: empPosId || positions[0]?.id || '',
-        full_name: empName,
-        cpf: empCpf,
-        registration_number: empReg,
-        email: empEmail,
-        phone: empPhone,
+        full_name: empName.trim(),
+        cpf: empCpf.trim(),
+        registration_number: empReg.trim(),
+        email: empEmail.trim(),
+        phone: empPhone.trim(),
         role: empRole,
         active: true,
         admission_date: new Date().toISOString().split('T')[0]
@@ -149,20 +151,24 @@ export const PeopleManagementPage: React.FC<PeopleManagementPageProps> = ({ init
 
   const handleSavePosition = (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanDeptId = posDeptId && String(posDeptId).trim().length > 0 ? String(posDeptId).trim() : null;
     if (editingPos) {
       updatePosition(editingPos.id, {
-        title: posTitle,
-        code: posCode,
-        department_id: posDeptId || undefined,
-        description: posDesc
+        company_id: editingPos.company_id || companies[0]?.id || 'comp-1',
+        title: posTitle.trim(),
+        code: posCode.trim(),
+        department_id: cleanDeptId,
+        description: posDesc.trim(),
+        status: editingPos.status || 'active'
       });
     } else {
       addPosition({
-        company_id: companies[0]?.id || '',
-        department_id: posDeptId || undefined,
-        title: posTitle,
-        code: posCode,
-        description: posDesc
+        company_id: companies[0]?.id || 'comp-1',
+        department_id: cleanDeptId,
+        title: posTitle.trim(),
+        code: posCode.trim(),
+        description: posDesc.trim(),
+        status: 'active'
       });
     }
     setShowPosModal(false);

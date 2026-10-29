@@ -208,12 +208,42 @@ app.post('/api/positions', async (req, res) => {
 app.put('/api/positions/:id', async (req, res) => {
   try {
     const { company_id, department_id, code, title, description, status } = req.body;
+    const safeDeptId = (department_id !== undefined && department_id !== null && String(department_id).trim() !== '') 
+      ? String(department_id).trim() 
+      : null;
+
     await pool.query(
-      'UPDATE positions SET company_id = ?, department_id = ?, code = ?, title = ?, description = ?, status = ? WHERE id = ?',
-      [company_id || null, department_id || null, code, title, description, status, req.params.id]
+      `UPDATE positions SET 
+        company_id = COALESCE(?, company_id), 
+        department_id = ?, 
+        code = COALESCE(?, code), 
+        title = COALESCE(?, title), 
+        description = COALESCE(?, description), 
+        status = COALESCE(?, status) 
+       WHERE id = ?`,
+      [
+        company_id || null, 
+        safeDeptId, 
+        code || null, 
+        title || null, 
+        description !== undefined ? description : null, 
+        status || null, 
+        req.params.id
+      ]
     );
-    res.json({ success: true });
+
+    const [rows] = await pool.query(
+      `SELECT p.*, c.trade_name as company_name, COALESCE(d.name, 'Geral (Multissetorial)') as department_name 
+       FROM positions p 
+       LEFT JOIN companies c ON p.company_id = c.id 
+       LEFT JOIN departments d ON p.department_id = d.id 
+       WHERE p.id = ?`,
+      [req.params.id]
+    );
+
+    res.json({ success: true, position: rows[0] });
   } catch (err) {
+    console.error('Erro ao atualizar cargo:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -1067,8 +1097,13 @@ async function ensureRBACSchema() {
       await pool.query("ALTER TABLE employees MODIFY COLUMN role ENUM('SUPER_ADMIN', 'ADMIN', 'USUARIO', 'ADMINISTRADOR', 'GESTOR', 'RH', 'FUNCIONARIO') NOT NULL DEFAULT 'USUARIO'");
     } catch (e) {}
 
-        try {
+            try {
       await pool.query("ALTER TABLE positions MODIFY COLUMN department_id VARCHAR(64) NULL DEFAULT NULL");
+    } catch (e) {}
+
+    // Ajusta o cargo Gerente para Multissetorial (NULL) se estiver travado no SAC
+    try {
+      await pool.query("UPDATE positions SET department_id = NULL WHERE LOWER(title) LIKE '%gerente%' AND department_id IS NOT NULL");
     } catch (e) {}
 
     // Garante que todas as contas existentes tenham senha padrão '123' caso nula
