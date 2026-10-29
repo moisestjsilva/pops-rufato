@@ -135,13 +135,13 @@ export const PeopleManagementPage: React.FC<PeopleManagementPageProps> = ({ init
       setEditingPos(pos);
       setPosTitle(pos.title);
       setPosCode(pos.code);
-      setPosDeptId(pos.department_id);
+      setPosDeptId(pos.department_id || '');
       setPosDesc(pos.description || '');
     } else {
       setEditingPos(null);
       setPosTitle('');
       setPosCode(`CARG-${Math.floor(100 + Math.random() * 900)}`);
-      setPosDeptId(departments[0]?.id || '');
+      setPosDeptId('');
       setPosDesc('');
     }
     setShowPosModal(true);
@@ -153,13 +153,13 @@ export const PeopleManagementPage: React.FC<PeopleManagementPageProps> = ({ init
       updatePosition(editingPos.id, {
         title: posTitle,
         code: posCode,
-        department_id: posDeptId,
+        department_id: posDeptId || undefined,
         description: posDesc
       });
     } else {
       addPosition({
         company_id: companies[0]?.id || '',
-        department_id: posDeptId || departments[0]?.id || '',
+        department_id: posDeptId || undefined,
         title: posTitle,
         code: posCode,
         description: posDesc
@@ -329,7 +329,7 @@ export const PeopleManagementPage: React.FC<PeopleManagementPageProps> = ({ init
                 <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider">
                   <th className="py-3 px-4">Código</th>
                   <th className="py-3 px-4">Título do Cargo</th>
-                  <th className="py-3 px-4">Setor Pertencente</th>
+                  <th className="py-3 px-4">Setor / Escopo</th>
                   <th className="py-3 px-4">Descrição</th>
                   <th className="py-3 px-4 text-right">Ações</th>
                 </tr>
@@ -339,7 +339,15 @@ export const PeopleManagementPage: React.FC<PeopleManagementPageProps> = ({ init
                   <tr key={pos.id} className="hover:bg-slate-50">
                     <td className="py-3 px-4 font-mono font-bold text-blue-900">{pos.code}</td>
                     <td className="py-3 px-4 font-bold text-slate-900">{pos.title}</td>
-                    <td className="py-3 px-4 text-slate-600">{pos.department_name}</td>
+                    <td className="py-3 px-4">
+                      {pos.department_id && pos.department_name && pos.department_name !== 'Geral (Multissetorial)' ? (
+                        <span className="text-slate-700 font-medium">{pos.department_name}</span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          🌐 Geral (Multissetorial)
+                        </span>
+                      )}
+                    </td>
                     <td className="py-3 px-4 text-slate-500 max-w-xs truncate">{pos.description || 'N/A'}</td>
                     <td className="py-3 px-4 text-right space-x-1">
                       <button onClick={() => openPosModal(pos)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg">
@@ -467,7 +475,11 @@ export const PeopleManagementPage: React.FC<PeopleManagementPageProps> = ({ init
                 <div>
                   <label className="block font-semibold mb-1">Cargo *</label>
                   <select value={empPosId} onChange={e => setEmpPosId(e.target.value)} className="w-full p-2.5 rounded-lg border bg-white">
-                    {positions.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+                    {positions.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.title} {!p.department_id ? '(Multissetorial)' : `(${p.department_name})`}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -512,10 +524,14 @@ export const PeopleManagementPage: React.FC<PeopleManagementPageProps> = ({ init
                   <input type="text" value={posCode} onChange={e => setPosCode(e.target.value)} required className="w-full p-2.5 rounded-lg border" />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Setor *</label>
+                  <label className="block font-semibold mb-1">Setor Vinculado (Opcional)</label>
                   <select value={posDeptId} onChange={e => setPosDeptId(e.target.value)} className="w-full p-2.5 rounded-lg border bg-white">
+                    <option value="">🌐 Geral / Todos os Setores (Multissetorial)</option>
                     {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Deixe como "Geral" para usar este cargo (ex: Gerente, Analista) em qualquer setor.
+                  </p>
                 </div>
               </div>
 

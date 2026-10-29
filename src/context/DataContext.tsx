@@ -417,11 +417,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Positions CRUD
   const addPosition = (pos: Omit<Position, 'id' | 'created_at' | 'updated_at'>): Position => {
     const comp = companies.find(c => c.id === pos.company_id);
-    const dept = departments.find(d => d.id === pos.department_id);
+    const dept = pos.department_id ? departments.find(d => d.id === pos.department_id) : null;
     const newPos: Position = {
       ...pos,
       company_name: comp?.trade_name || '',
-      department_name: dept?.name || '',
+      department_name: dept?.name || 'Geral (Multissetorial)',
       id: 'p-' + Date.now(),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -432,7 +432,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updatePosition = (id: string, pos: Partial<Position>) => {
-    setPositions(prev => prev.map(p => p.id === id ? { ...p, ...pos, updated_at: new Date().toISOString() } : p));
+    setPositions(prev => prev.map(p => {
+      if (p.id !== id) return p;
+      const deptId = pos.department_id !== undefined ? pos.department_id : p.department_id;
+      const dept = deptId ? departments.find(d => d.id === deptId) : null;
+      return {
+        ...p,
+        ...pos,
+        department_name: dept?.name || (!deptId ? 'Geral (Multissetorial)' : p.department_name),
+        updated_at: new Date().toISOString()
+      };
+    }));
     apiClient.updatePosition(id, pos).catch(err => console.warn('[MySQL] Erro ao atualizar cargo:', err));
   };
 

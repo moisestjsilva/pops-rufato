@@ -53,7 +53,7 @@ export interface Department {
 export interface Position {
   id: string;
   company_id: string;
-  department_id: string;
+  department_id?: string | null;
   company_name?: string;
   department_name?: string;
   code?: string;

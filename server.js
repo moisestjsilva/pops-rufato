@@ -178,7 +178,7 @@ app.delete('/api/departments/:id', async (req, res) => {
 app.get('/api/positions', async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT p.*, c.trade_name as company_name, d.name as department_name 
+      SELECT p.*, c.trade_name as company_name, COALESCE(d.name, 'Geral (Multissetorial)') as department_name 
       FROM positions p 
       LEFT JOIN companies c ON p.company_id = c.id 
       LEFT JOIN departments d ON p.department_id = d.id 
@@ -196,7 +196,7 @@ app.post('/api/positions', async (req, res) => {
     const posId = id || `pos-${Date.now()}`;
     await pool.query(
       'INSERT INTO positions (id, company_id, department_id, code, title, description, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [posId, company_id, department_id, code || null, title, description || null, status || 'active']
+      [posId, company_id || 'comp-1', department_id || null, code || null, title, description || null, status || 'active']
     );
     const [rows] = await pool.query('SELECT * FROM positions WHERE id = ?', [posId]);
     res.status(201).json(rows[0]);
@@ -210,7 +210,7 @@ app.put('/api/positions/:id', async (req, res) => {
     const { company_id, department_id, code, title, description, status } = req.body;
     await pool.query(
       'UPDATE positions SET company_id = ?, department_id = ?, code = ?, title = ?, description = ?, status = ? WHERE id = ?',
-      [company_id, department_id, code, title, description, status, req.params.id]
+      [company_id || null, department_id || null, code, title, description, status, req.params.id]
     );
     res.json({ success: true });
   } catch (err) {
@@ -1065,6 +1065,10 @@ async function ensureRBACSchema() {
     }
     try {
       await pool.query("ALTER TABLE employees MODIFY COLUMN role ENUM('SUPER_ADMIN', 'ADMIN', 'USUARIO', 'ADMINISTRADOR', 'GESTOR', 'RH', 'FUNCIONARIO') NOT NULL DEFAULT 'USUARIO'");
+    } catch (e) {}
+
+        try {
+      await pool.query("ALTER TABLE positions MODIFY COLUMN department_id VARCHAR(64) NULL DEFAULT NULL");
     } catch (e) {}
 
     // Garante que todas as contas existentes tenham senha padrão '123' caso nula
