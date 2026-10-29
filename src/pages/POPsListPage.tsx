@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   FileText, 
   Plus, 
@@ -66,7 +66,32 @@ export const POPsListPage: React.FC<POPsListPageProps> = ({
     }
     return 'TODOS';
   });
+  const [selectedAuthor, setSelectedAuthor] = useState<string>('TODOS');
   const [selectedRevision, setSelectedRevision] = useState<string>('TODOS');
+
+  // Lista dinâmica e única de autores de POPs cadastrados
+  const authorsList = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; count: number }>();
+
+    pops.forEach(pop => {
+      const rawName = (pop.author_name || pop.responsible_name || '').trim();
+      if (!rawName && !pop.author_id) return;
+      
+      const key = rawName || pop.author_id || 'Desconhecido';
+      const existing = map.get(key);
+      if (existing) {
+        existing.count++;
+      } else {
+        map.set(key, {
+          id: key,
+          name: rawName || pop.author_name || 'Desconhecido',
+          count: 1
+        });
+      }
+    });
+
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  }, [pops]);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
 
   const filteredPOPs = pops.filter(pop => {
@@ -132,7 +157,7 @@ export const POPsListPage: React.FC<POPsListPageProps> = ({
 
       {/* Filter & Controls Bar */}
       <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5 text-xs">
           {/* Search Box */}
           <div className="relative sm:col-span-2">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
@@ -231,7 +256,7 @@ export const POPsListPage: React.FC<POPsListPageProps> = ({
               <tbody className="divide-y divide-slate-100 font-normal">
                 {filteredPOPs.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-slate-400">
+                    <td colSpan={8} className="py-8 text-center text-slate-400">
                       Nenhum procedimento operacional encontrado com os filtros selecionados.
                     </td>
                   </tr>
@@ -328,6 +353,7 @@ export const POPsListPage: React.FC<POPsListPageProps> = ({
                     {pop.title}
                   </h3>
                   <p className="text-[11px] text-slate-500">Setor: {pop.department_name}</p>
+                  <p className="text-[11px] text-slate-500">Criado por: <span className="text-slate-700 font-medium">{pop.author_name || pop.responsible_name || '—'}</span></p>
                 </div>
 
                 <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600 gap-2">
