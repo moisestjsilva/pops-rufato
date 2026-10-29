@@ -280,15 +280,18 @@ export const PeopleManagementPage: React.FC<PeopleManagementPageProps> = ({ init
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
-                {employees.filter(e => e.full_name.toLowerCase().includes(search.toLowerCase()) || e.cpf.includes(search) || e.email.toLowerCase().includes(search.toLowerCase())).map(emp => (
+                {employees.filter(e => e.full_name.toLowerCase().includes(search.toLowerCase()) || e.cpf.includes(search) || e.email.toLowerCase().includes(search.toLowerCase())).map(emp => {
+                  const currentPos = positions.find(p => p.id === emp.position_id);
+                  const currentDept = departments.find(d => d.id === emp.department_id);
+                  return (
                   <tr key={emp.id} className="hover:bg-slate-50">
                     <td className="py-3 px-4">
                       <div className="font-bold text-slate-900">{emp.full_name}</div>
                       <div className="text-slate-500 text-[11px]">{emp.email}</div>
                     </td>
                     <td className="py-3 px-4 text-slate-600 font-mono font-medium">{formatCPF(emp.cpf)}</td>
-                    <td className="py-3 px-4 text-slate-700">{emp.department_name}</td>
-                    <td className="py-3 px-4 text-slate-700">{emp.position_title}</td>
+                    <td className="py-3 px-4 text-slate-700">{currentDept?.name || emp.department_name || 'Não atribuído'}</td>
+                    <td className="py-3 px-4 text-slate-700 font-semibold">{currentPos?.title || emp.position_title || 'Não atribuído'}</td>
                     <td className="py-3 px-4">
                       <span className="px-2 py-0.5 text-[10px] font-bold rounded-md bg-slate-100 text-slate-800 border border-slate-200">
                         {emp.role}
@@ -303,7 +306,8 @@ export const PeopleManagementPage: React.FC<PeopleManagementPageProps> = ({ init
                       </button>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

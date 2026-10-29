@@ -500,7 +500,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateEmployee = (id: string, emp: Partial<Employee>) => {
-    setEmployees(prev => prev.map(e => e.id === id ? { ...e, ...emp, updated_at: new Date().toISOString() } : e));
+    setEmployees(prev => prev.map(e => {
+      if (e.id !== id) return e;
+      const nextPosId = emp.position_id !== undefined ? emp.position_id : e.position_id;
+      const nextDeptId = emp.department_id !== undefined ? emp.department_id : e.department_id;
+      const pos = positions.find(p => p.id === nextPosId);
+      const dept = departments.find(d => d.id === nextDeptId);
+      return {
+        ...e,
+        ...emp,
+        position_title: pos ? pos.title : (nextPosId ? e.position_title : e.position_title),
+        department_name: dept ? dept.name : (nextDeptId ? e.department_name : e.department_name),
+        updated_at: new Date().toISOString()
+      };
+    }));
     apiClient.updateEmployee(id, emp).catch(err => console.warn('[MySQL] Erro ao atualizar colaborador:', err));
   };
 
