@@ -115,6 +115,13 @@ export const POPsListPage: React.FC<POPsListPageProps> = ({
     // Dept filter
     if (selectedDept !== 'TODOS' && pop.department_id !== selectedDept) return false;
 
+    // Author / Criador filter
+    if (selectedAuthor !== 'TODOS') {
+      const name = (pop.author_name || pop.responsible_name || '').trim().toLowerCase();
+      const match = pop.author_id === selectedAuthor || name === selectedAuthor.toLowerCase();
+      if (!match) return false;
+    }
+
     // Revision status filter
     if (selectedRevision !== 'TODOS') {
       const rev = getRevisionStatus(pop.next_review_date);
@@ -200,6 +207,20 @@ export const POPsListPage: React.FC<POPsListPageProps> = ({
             </select>
           </div>
 
+          {/* Author / Criador Select */}
+          <div>
+            <select
+              value={selectedAuthor}
+              onChange={e => setSelectedAuthor(e.target.value)}
+              className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white font-normal text-slate-700 text-xs focus:outline-hidden focus:border-slate-400 focus:ring-1 focus:ring-slate-400 transition-colors"
+            >
+              <option value="TODOS">Criado por (Todos)</option>
+              {authorsList.map(a => (
+                <option key={a.id} value={a.id}>{a.name} ({a.count})</option>
+              ))}
+            </select>
+          </div>
+
           {/* Revision Select */}
           <div>
             <select
@@ -246,6 +267,7 @@ export const POPsListPage: React.FC<POPsListPageProps> = ({
                 <tr className="bg-slate-50/70 border-b border-slate-200/80 text-slate-500 font-medium text-[11px] uppercase tracking-wider">
                   <th className="py-2.5 px-4">Código / Título</th>
                   <th className="py-2.5 px-4">Setor</th>
+                  <th className="py-2.5 px-4">Criado por</th>
                   <th className="py-2.5 px-4">Versão</th>
                   <th className="py-2.5 px-4">Status POP</th>
                   <th className="py-2.5 px-4">Revisão</th>
@@ -276,6 +298,9 @@ export const POPsListPage: React.FC<POPsListPageProps> = ({
                         </td>
                         <td className="py-3 px-4 text-slate-600">
                           {pop.department_name}
+                        </td>
+                        <td className="py-3 px-4 text-slate-700 font-medium whitespace-nowrap">
+                          {pop.author_name || pop.responsible_name || '—'}
                         </td>
                         <td className="py-3 px-4 font-medium text-slate-700">
                           V{pop.current_version}

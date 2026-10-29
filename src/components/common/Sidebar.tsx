@@ -388,7 +388,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <span className="truncate">Rufato Indústria</span>
         <span className="inline-flex items-center gap-1.5 text-slate-500 font-medium shrink-0">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-          v2.5
+          v2.6
         </span>
       </div>
     </div>
